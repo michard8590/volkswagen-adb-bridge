@@ -169,6 +169,9 @@ def publish_confirmed_command_state(
     updated["climate"] = dict(
         previous.get("climate") or {}
     )
+    updated["lock"] = dict(
+        previous.get("lock") or {}
+    )
 
     message = None
 
@@ -278,6 +281,34 @@ def publish_confirmed_command_state(
         message = (
             f"Bestätigte Klima-Zieltemperatur sofort veröffentlicht: "
             f"{float(temperature):.1f} °C"
+        )
+
+    # --------------------------------------------------------
+    # Verriegeln / Entriegeln
+    # --------------------------------------------------------
+    elif command in (
+        "lock",
+        "unlock",
+    ):
+        # Ein abgeschickter, aber noch nicht bestätigter Remote-Befehl
+        # darf niemals als fertiger Zustand an HA gemeldet werden.
+        if result.get("pending"):
+            return False
+
+        lock_state = result.get("state")
+
+        if lock_state not in (
+            "locked",
+            "unlocked",
+        ):
+            return False
+
+        updated["lock"]["state"] = lock_state
+        updated["lock"]["supported"] = True
+
+        message = (
+            f"Bestätigten Verriegelungsstatus sofort veröffentlicht: "
+            f"{lock_state}"
         )
 
     else:

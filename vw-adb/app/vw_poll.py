@@ -11,6 +11,7 @@ from job_queue import BackgroundCancelled, check_cancel
 from vw_charge import read_poll_charge_status, read_target_soc_setting
 from vw_climate import get_climate_tile_status, read_status as read_climate_status
 from vw_odometer import read_odometer_km
+from vw_lock import find_lock_feature_with_scroll
 from vw_ui import start_app, stop_app
 from vw_vehicle import (
     ensure_vehicle_overview,
@@ -26,6 +27,11 @@ from vw_vehicle import (
 
 DEFAULT_SYNC_IF_OLDER_THAN = 15 * 60
 DEFAULT_SYNC_WAIT_TIMEOUT = 180
+
+# Remote-Lock-Unterstützung ändert sich während eines Add-on-Laufs
+# normalerweise nicht. Die aufwendigere UI-Erkennung daher nur einmal
+# pro Fahrzeug durchführen.
+_lock_support_cache = {}
 
 
 def format_sync_age(age_seconds):
@@ -160,12 +166,37 @@ def poll_vehicle(
     if lock_state is None:
         lock_state = read_overview_lock_state(root, None)
 
+    # Remote-Lock-Capability separat vom sichtbaren Lock-State behandeln.
+    # Ein Fahrzeug kann "locked" anzeigen, ohne Remote Lock/Unlock
+    # anzubieten.
+    lock_supported = _lock_support_cache.get(vin)
+
+    if lock_supported is None:
+        check_cancel(cancel_event)
+
+        try:
+            _, lock_feature = find_lock_feature_with_scroll()
+            lock_supported = lock_feature is not None
+            _lock_support_cache[vin] = lock_supported
+
+        except BackgroundCancelled:
+            raise
+
+        except Exception:
+            # Bei einem temporären UI-Fehler lieber kein Control anbieten.
+            # Beim nächsten Poll wird die Capability erneut versucht.
+            lock_supported = None
+
+        finally:
+            ensure_vehicle_overview()
+
     return {
         "vehicle": vehicle,
         "sync": sync,
         "charge": charge,
         "lock": {
             "state": lock_state,
+            "supported": lock_supported,
         },
         "climate": {
             "state": climate_state,

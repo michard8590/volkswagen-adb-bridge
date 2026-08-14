@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.12"
+BRIDGE_VERSION = "0.1.13"
 
 
 def _safe_id(value):
@@ -46,7 +46,7 @@ def build_vehicle_discovery(vehicle_data):
 
     prefix = vehicle_object_id(vin)
 
-    return {
+    payload = {
         "dev": {
             "ids": [prefix],
             "name": name,
@@ -253,6 +253,35 @@ def build_vehicle_discovery(vehicle_data):
             },
         },
     }
+
+
+    # Remote Lock/Unlock nur anbieten, wenn die VW-App diese Funktion
+    # für genau dieses Fahrzeug tatsächlich bereitstellt.
+    lock = vehicle_data.get("lock") or {}
+
+    if lock.get("supported") is True:
+        payload["cmps"]["lock_control"] = {
+            "p": "lock",
+            "name": "Lock",
+            "unique_id": f"{prefix}_lock_control",
+            "icon": "mdi:car-door-lock",
+            "command_topic": "vw_adb/command",
+            "command_template": (
+                '{"command":"{{ value }}","vin":"'
+                + vin
+                + '"}'
+            ),
+            "payload_lock": "lock",
+            "payload_unlock": "unlock",
+            "state_locked": "locked",
+            "state_unlocked": "unlocked",
+            "value_template": (
+                "{{ value_json.lock.state }}"
+            ),
+            "optimistic": False,
+        }
+
+    return payload
 
 
 def publish_vehicle_discovery(mqtt_bridge, vehicle_data):

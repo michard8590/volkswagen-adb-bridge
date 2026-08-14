@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.13
+
+- Detect remote Lock/Unlock capability separately for every vehicle.
+- Add a native Home Assistant lock entity only for supported vehicles.
+- Keep lock state available for vehicles without remote Lock/Unlock support.
+- Publish verified lock and unlock changes to Home Assistant immediately.
+- Do not publish an unconfirmed final state while a remote lock command is pending.
+- Keep the S-PIN local to the add-on and out of MQTT command payloads.
+
 ## 0.1.12
 
 - Fix climate target temperature missing from published vehicle state.
