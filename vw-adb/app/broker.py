@@ -419,6 +419,12 @@ def main():
                     # Fahrzeugzustand möglichst schnell erneut lesen.
                     next_poll = time.monotonic()
 
+                    # Der Zielladestand wird nur im Detail-Poll gelesen.
+                    # Nach einer Änderung deshalb auch diesen sofort
+                    # anfordern.
+                    if result.get("command") == "target_soc":
+                        next_detail_poll = time.monotonic()
+
                     log(
                         "INFO",
                         "MQTT-Command abgeschlossen: "

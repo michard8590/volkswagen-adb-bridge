@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.7"
+BRIDGE_VERSION = "0.1.8"
 
 
 def _safe_id(value):
@@ -153,6 +153,48 @@ def build_vehicle_discovery(vehicle_data):
                     "if value_json.odometer_km is not none "
                     "else none }}"
                 ),
+            },
+            "target_soc_control": {
+                "p": "number",
+                "name": "Target charge",
+                "unique_id": f"{prefix}_target_soc_control",
+                "icon": "mdi:battery-charging",
+                "unit_of_measurement": "%",
+                "min": 50,
+                "max": 100,
+                "step": 10,
+                "mode": "slider",
+                "command_topic": "vw_adb/command",
+                "command_template": (
+                    '{"command":"target_soc","vin":"'
+                    + vin
+                    + '","value":{{ value | int }}}'
+                ),
+                "value_template": (
+                    "{{ value_json.charge.target_soc "
+                    "if value_json.charge.target_soc is not none "
+                    "else none }}"
+                ),
+            },
+            "charging_control": {
+                "p": "switch",
+                "name": "Charging",
+                "unique_id": f"{prefix}_charging_control",
+                "icon": "mdi:ev-station",
+                "command_topic": "vw_adb/command",
+                "command_template": (
+                    '{"command":"charge_{{ value }}","vin":"'
+                    + vin
+                    + '"}'
+                ),
+                "payload_on": "start",
+                "payload_off": "stop",
+                "state_on": "charging",
+                "state_off": "stopped",
+                "value_template": (
+                    "{{ value_json.charge.state }}"
+                ),
+                "optimistic": False,
             },
             "sync_age": {
                 "p": "sensor",
