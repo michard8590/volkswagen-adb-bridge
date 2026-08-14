@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.19
+
+- Recreate existing MQTT location trackers to remove stale inherited state topics.
+- Fix Home Assistant vehicle trackers remaining in unknown state despite valid GPS coordinates.
+- Poll the currently active Volkswagen vehicle location first to avoid unnecessary vehicle switching.
+
 ## 0.1.18
 
 - Fix MQTT GPS device trackers remaining in unknown state.

@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.18"
+BRIDGE_VERSION = "0.1.19"
 
 # Bereits migrierte Discovery-Geräte dieses Add-on-Laufs.
 _discovery_cleanup_done = set()
@@ -305,6 +305,14 @@ def build_obsolete_component_cleanup(vehicle_data):
         },
         "target_soc": {
             "p": "sensor",
+        },
+
+        # Vor 0.1.18 hat der Location-Tracker das gemeinsame
+        # vehicle state_topic geerbt. Die alte Komponente muss einmal
+        # explizit entfernt werden, damit Home Assistant diese alte
+        # Konfiguration nicht weiter verwendet.
+        "location": {
+            "p": "device_tracker",
         },
     }
 

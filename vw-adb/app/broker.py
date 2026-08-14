@@ -30,7 +30,7 @@ from mqtt_discovery import (
 from u2_connection import U2Connection
 from vw_poll import poll_once
 from vw_location import read_location
-from vw_vehicle import load_cache, list_vehicles
+from vw_vehicle import current_vehicle, load_cache, list_vehicles
 
 
 RETRY_SECONDS = 15
@@ -352,6 +352,23 @@ def run_location_poll(
 
     results = []
     errors = []
+
+    # Das aktuell in der VW-App geöffnete Fahrzeug zuerst lesen.
+    # Dadurch vermeiden wir einen unnötigen Fahrzeugwechsel.
+    try:
+        current = current_vehicle()
+    except Exception:
+        current = None
+
+    if current:
+        current_vin = current.get("vin")
+
+        vehicles = sorted(
+            vehicles,
+            key=lambda item: (
+                0 if item.get("vin") == current_vin else 1
+            ),
+        )
 
     for item in vehicles:
         check_cancel(cancel_event)
