@@ -117,6 +117,25 @@ def run_basic_poll(options, cancel_event=None):
     )
 
 
+def run_detail_poll(options, cancel_event=None):
+    return poll_once(
+        sync_if_older_than=options.get(
+            "sync_if_older_than",
+            900,
+        ),
+        sync_wait_timeout=options.get(
+            "sync_wait_timeout",
+            180,
+        ),
+        stop_after=options.get(
+            "stop_app_after_poll",
+            True,
+        ),
+        include_details=True,
+        cancel_event=cancel_event,
+    )
+
+
 def main():
     log(
         "INFO",
@@ -263,10 +282,15 @@ def main():
                 now + HEALTHCHECK_SECONDS
             )
 
-            # Ersten Poll direkt nach erfolgreichem Start ausführen.
+            # Ersten Basic-Poll sofort ausführen.
             next_poll = now
 
+            # Detailwerte etwas später lesen, damit nach dem Start
+            # zunächst schnell die normalen Fahrzeugwerte verfügbar sind.
+            next_detail_poll = now + 60
+
             active_poll = None
+            active_detail_poll = None
             active_healthcheck = None
 
             while True:
@@ -317,6 +341,10 @@ def main():
                     mqtt_bridge.publish_result(
                         result
                     )
+
+                    # Nach einem Benutzerkommando den tatsächlichen
+                    # Fahrzeugzustand möglichst schnell erneut lesen.
+                    next_poll = time.monotonic()
 
                     log(
                         "INFO",
@@ -415,6 +443,82 @@ def main():
                         )
 
                     active_poll = None
+
+                # --------------------------------------------------
+                # Detail poll
+                # --------------------------------------------------
+
+                if (
+                    active_detail_poll is None
+                    and active_poll is None
+                    and now >= next_detail_poll
+                ):
+                    active_detail_poll = jobs.submit(
+                        "detail-poll",
+                        run_detail_poll,
+                        options,
+                        priority=PRIORITY_BACKGROUND,
+                        cancellable=True,
+                    )
+
+                    next_detail_poll = (
+                        now
+                        + int(
+                            options.get(
+                                "detail_poll_interval",
+                                900,
+                            )
+                        )
+                    )
+
+                if (
+                    active_detail_poll is not None
+                    and active_detail_poll.done_event.is_set()
+                ):
+                    try:
+                        result = active_detail_poll.wait()
+
+                        mqtt_bridge.publish_state(
+                            result
+                        )
+
+                        for vehicle_data in result.get(
+                            "vehicles",
+                            [],
+                        ):
+                            publish_vehicle_discovery(
+                                mqtt_bridge,
+                                vehicle_data,
+                            )
+
+                            publish_vehicle_state(
+                                mqtt_bridge,
+                                vehicle_data,
+                            )
+
+                        log(
+                            "INFO",
+                            "Fahrzeug-Detail-Poll abgeschlossen: "
+                            + json.dumps(
+                                result,
+                                ensure_ascii=False,
+                            ),
+                        )
+
+                    except BackgroundCancelled:
+                        log(
+                            "INFO",
+                            "Fahrzeug-Detail-Poll zugunsten eines "
+                            "Benutzerkommandos abgebrochen.",
+                        )
+
+                    except Exception as exc:
+                        log(
+                            "ERROR",
+                            f"Fahrzeug-Detail-Poll fehlgeschlagen: {exc}",
+                        )
+
+                    active_detail_poll = None
 
                 # --------------------------------------------------
                 # Connection healthcheck

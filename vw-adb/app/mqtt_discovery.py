@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.5"
+BRIDGE_VERSION = "0.1.6"
 
 
 def _safe_id(value):
@@ -125,6 +125,33 @@ def build_vehicle_discovery(vehicle_data):
                 "device_class": "timestamp",
                 "value_template": (
                     "{{ value_json.sync.last_sync_at }}"
+                ),
+            },
+            "target_soc": {
+                "p": "sensor",
+                "name": "Target charge",
+                "unique_id": f"{prefix}_target_soc",
+                "device_class": "battery",
+                "unit_of_measurement": "%",
+                "entity_category": "diagnostic",
+                "value_template": (
+                    "{{ value_json.charge.target_soc "
+                    "if value_json.charge.target_soc is not none "
+                    "else none }}"
+                ),
+            },
+            "odometer": {
+                "p": "sensor",
+                "name": "Odometer",
+                "unique_id": f"{prefix}_odometer",
+                "device_class": "distance",
+                "state_class": "total_increasing",
+                "unit_of_measurement": "km",
+                "icon": "mdi:counter",
+                "value_template": (
+                    "{{ value_json.odometer_km "
+                    "if value_json.odometer_km is not none "
+                    "else none }}"
                 ),
             },
             "sync_age": {
