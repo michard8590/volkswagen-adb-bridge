@@ -5,10 +5,11 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.24"
+BRIDGE_VERSION = "0.1.25"
 
-# Bereits migrierte Discovery-Geräte dieses Add-on-Laufs.
-_discovery_cleanup_done = set()
+# Zuletzt veröffentlichte MQTT-Discovery pro Fahrzeug.
+# Discovery wird nur erneut gesendet, wenn sich der Payload ändert.
+_discovery_payload_cache = {}
 
 
 def _safe_id(value):
@@ -282,83 +283,31 @@ def build_vehicle_discovery(vehicle_data):
     return payload
 
 
-def build_obsolete_component_cleanup(vehicle_data):
-    """
-    Entfernt Discovery-Komponenten, die seit 0.1.14 durch native
-    steuerbare Entities ersetzt wurden.
-
-    Home Assistant verlangt bei Device Discovery für das Entfernen
-    einer einzelnen Komponente weiterhin mindestens deren Plattform.
-    """
-    normal = build_vehicle_discovery(
-        vehicle_data
-    )
-
-    lock = vehicle_data.get("lock") or {}
-
-    components = {
-        "charging_state": {
-            "p": "sensor",
-        },
-        "climate_state": {
-            "p": "sensor",
-        },
-        "target_soc": {
-            "p": "sensor",
-        },
-
-        # Vor 0.1.18 hat der Location-Tracker das gemeinsame
-        # vehicle state_topic geerbt. Die alte Komponente muss einmal
-        # explizit entfernt werden, damit Home Assistant diese alte
-        # Konfiguration nicht weiter verwendet.
-        "location": {
-            "p": "device_tracker",
-        },
-    }
-
-    # Nur beim Remote-Lock-fähigen Fahrzeug verschwindet der separate
-    # Lock-State-Sensor. Ohne Remote Lock bleibt er bestehen.
-    if lock.get("supported") is True:
-        components["lock_state"] = {
-            "p": "sensor",
-        }
-
-    cleanup = {
-        **normal,
-        "cmps": components,
-    }
-
-    return cleanup
-
-
 def publish_vehicle_discovery(mqtt_bridge, vehicle_data):
     vin = vehicle_data["vehicle"]["vin"]
     topic = vehicle_discovery_topic(vin)
-
-    if vin not in _discovery_cleanup_done:
-        cleanup = build_obsolete_component_cleanup(
-            vehicle_data
-        )
-
-        mqtt_bridge.publish_json(
-            topic,
-            cleanup,
-            retain=True,
-            qos=1,
-        )
-
-        _discovery_cleanup_done.add(vin)
 
     payload = build_vehicle_discovery(
         vehicle_data
     )
 
-    return mqtt_bridge.publish_json(
+    # Retained MQTT Discovery muss nicht bei jedem Fahrzeugstatus erneut
+    # veröffentlicht werden. Das verhindert unnötiges Neuladen von
+    # Home-Assistant-Entities, insbesondere des GPS-Device-Trackers.
+    if _discovery_payload_cache.get(vin) == payload:
+        return False
+
+    result = mqtt_bridge.publish_json(
         topic,
         payload,
         retain=True,
         qos=1,
     )
+
+    # Erst nach erfolgreichem Publish cachen.
+    _discovery_payload_cache[vin] = payload
+
+    return result
 
 
 def publish_vehicle_location(

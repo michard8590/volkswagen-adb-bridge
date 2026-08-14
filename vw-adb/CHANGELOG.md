@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.25
+
+- Publish retained MQTT device discovery only when the discovery payload changes.
+- Remove legacy per-startup MQTT discovery cleanup for obsolete entities.
+- Avoid unnecessary Home Assistant device tracker recreation and transient unknown location states.
+
 ## 0.1.24
 
 - Clean up stale Wireless ADB endpoints after a successful reconnect.
