@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.bak*
+.venv/
+.venv-*/
+vehicles.json
+*.patch
+*.zip
+
+# Lokale getestete Arbeitskopien im Repository-Root
+/vw_*.py

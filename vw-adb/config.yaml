@@ -1,0 +1,65 @@
+name: Volkswagen ADB Bridge
+version: "0.1.0"
+slug: vw_adb_bridge
+description: Volkswagen vehicle integration through the official Android app using ADB
+arch:
+  - amd64
+
+startup: application
+boot: auto
+stage: experimental
+
+host_network: true
+usb: true
+udev: true
+
+options:
+  connection_mode: auto
+  adb_device_serial: ""
+
+  wifi:
+    autodiscovery: true
+    host: ""
+    port: 0
+    pairing:
+      code: ""
+      host: ""
+      port: 0
+
+  usb:
+    device_serial: ""
+
+  poll_interval: 300
+  detail_poll_interval: 900
+  location_poll_interval: 900
+  sync_if_older_than: 900
+  sync_wait_timeout: 180
+  stop_app_after_poll: true
+  spin: ""
+
+schema:
+  connection_mode: "list(auto|wifi|usb)"
+  adb_device_serial: str
+
+  wifi:
+    autodiscovery: bool
+    host: str
+    port: "int(0,65535)"
+    pairing:
+      host: str
+      port: "int(0,65535)"
+      code: password
+
+  usb:
+    device_serial: str
+
+  poll_interval: "int(60,86400)"
+  detail_poll_interval: "int(60,86400)"
+  location_poll_interval: "int(60,86400)"
+  sync_if_older_than: "int(0,86400)"
+  sync_wait_timeout: "int(10,600)"
+  stop_app_after_poll: bool
+  spin: password
+
+services:
+  - mqtt:need

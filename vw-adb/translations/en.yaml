@@ -1,0 +1,72 @@
+configuration:
+  connection_mode:
+    name: Connection mode
+    description: Automatically use USB or Wi-Fi, or force one connection type.
+
+  adb_device_serial:
+    name: Android device serial
+    description: Optional physical Android device serial used to select the correct phone.
+
+  wifi:
+    name: Wi-Fi ADB
+    description: Wireless debugging settings.
+    fields:
+      autodiscovery:
+        name: Auto discovery
+        description: Discover the current Wireless Debugging port automatically using mDNS.
+      host:
+        name: Host
+        description: Manual Android device IP address when auto discovery is disabled.
+      port:
+        name: Port
+        description: Manual ADB port as an optional fallback.
+
+      pairing:
+        name: Wi-Fi pairing
+        description: One-time pairing using Android Wireless Debugging.
+        fields:
+          code:
+            name: Pairing code
+            description: 6-digit code from "Pair device with pairing code". IP address and port are discovered automatically when auto discovery is enabled.
+          host:
+            name: Pairing host
+            description: Optional manual IP address for pairing. Normally leave empty.
+          port:
+            name: Pairing port
+            description: Optional manual pairing port. Normally leave empty or set to 0.
+
+  usb:
+    name: USB ADB
+    description: USB debugging settings.
+    fields:
+      device_serial:
+        name: USB device serial
+        description: Optional ADB serial when more than one USB device is connected.
+
+  poll_interval:
+    name: Poll interval
+    description: Basic vehicle status interval in seconds.
+
+  detail_poll_interval:
+    name: Detail poll interval
+    description: Detailed vehicle status interval in seconds.
+
+  location_poll_interval:
+    name: Location poll interval
+    description: Vehicle location interval in seconds.
+
+  sync_if_older_than:
+    name: Synchronize if older than
+    description: Trigger Volkswagen synchronization when data is older than this number of seconds.
+
+  sync_wait_timeout:
+    name: Synchronization timeout
+    description: Maximum time to wait for Volkswagen synchronization.
+
+  stop_app_after_poll:
+    name: Stop Volkswagen app after polling
+    description: Force-stop the Android Volkswagen app after a completed background poll.
+
+  spin:
+    name: Volkswagen S-PIN
+    description: Optional S-PIN for remote lock and unlock. The PIN is never transmitted through MQTT.
