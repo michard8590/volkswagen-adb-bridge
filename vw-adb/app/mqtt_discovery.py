@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.14"
+BRIDGE_VERSION = "0.1.15"
 
 # Bereits migrierte Discovery-Geräte dieses Add-on-Laufs.
 _discovery_cleanup_done = set()
@@ -26,6 +26,10 @@ def vehicle_object_id(vin):
 
 def vehicle_state_topic(vin):
     return f"vw_adb/vehicle/{vin}/state"
+
+
+def vehicle_location_topic(vin):
+    return f"vw_adb/vehicle/{vin}/location"
 
 
 def vehicle_discovery_topic(vin):
@@ -218,6 +222,15 @@ def build_vehicle_discovery(vehicle_data):
     }
 
 
+    payload["cmps"]["location"] = {
+        "p": "device_tracker",
+        "name": "Location",
+        "unique_id": f"{prefix}_location",
+        "icon": "mdi:car-marker",
+        "json_attributes_topic": vehicle_location_topic(vin),
+        "source_type": "gps",
+    }
+
     # Remote Lock/Unlock nur anbieten, wenn die VW-App diese Funktion
     # für genau dieses Fahrzeug tatsächlich bereitstellt.
     lock = vehicle_data.get("lock") or {}
@@ -327,6 +340,23 @@ def publish_vehicle_discovery(mqtt_bridge, vehicle_data):
     return mqtt_bridge.publish_json(
         topic,
         payload,
+        retain=True,
+        qos=1,
+    )
+
+
+def publish_vehicle_location(
+    mqtt_bridge,
+    vin,
+    latitude,
+    longitude,
+):
+    return mqtt_bridge.publish_json(
+        vehicle_location_topic(vin),
+        {
+            "latitude": float(latitude),
+            "longitude": float(longitude),
+        },
         retain=True,
         qos=1,
     )

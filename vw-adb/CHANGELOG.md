@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.15
+
+- Add native Home Assistant MQTT device trackers for vehicle locations.
+- Publish Volkswagen vehicle latitude and longitude through retained MQTT topics.
+- Use Home Assistant zone matching for GPS vehicle locations.
+- Keep location polling separate from normal vehicle status polling.
+- Make location polling cancellable by higher-priority user commands.
+- Isolate location errors so one vehicle cannot stop location updates for other vehicles.
+- Keep GPS accuracy unset when the Volkswagen app does not provide a real value.
+
 ## 0.1.14
 
 - Remove redundant read-only entities replaced by native Home Assistant controls.

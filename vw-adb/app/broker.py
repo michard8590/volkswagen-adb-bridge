@@ -24,9 +24,12 @@ from mqtt_bridge import MQTTBridge
 from mqtt_discovery import (
     publish_vehicle_discovery,
     publish_vehicle_state,
+    publish_vehicle_location,
 )
 from u2_connection import U2Connection
 from vw_poll import poll_once
+from vw_location import read_location
+from vw_vehicle import load_cache, list_vehicles
 
 
 RETRY_SECONDS = 15
@@ -331,6 +334,88 @@ def publish_confirmed_command_state(
     return True
 
 
+def run_location_poll(
+    mqtt_bridge,
+    cancel_event=None,
+):
+    """
+    Liest die Fahrzeugstandorte unabhängig vom normalen Status-Poll.
+
+    Ein Fehler bei einem Fahrzeug verhindert nicht die Verarbeitung
+    der übrigen Fahrzeuge.
+    """
+    vehicles = load_cache()
+
+    if not vehicles:
+        vehicles = list_vehicles()
+
+    results = []
+    errors = []
+
+    for item in vehicles:
+        check_cancel(cancel_event)
+
+        vin = str(item.get("vin") or "").strip()
+
+        if not vin:
+            continue
+
+        name = item.get("name") or vin
+
+        try:
+            result = read_location(
+                vin,
+                cancel_event=cancel_event,
+            )
+
+            location = result.get("location") or {}
+
+            latitude = location.get("latitude")
+            longitude = location.get("longitude")
+
+            if latitude is None or longitude is None:
+                raise RuntimeError(
+                    "Standort enthält keine vollständigen Koordinaten"
+                )
+
+            publish_vehicle_location(
+                mqtt_bridge,
+                vin,
+                latitude,
+                longitude,
+            )
+
+            results.append(result)
+
+            log(
+                "INFO",
+                f"Fahrzeugstandort veröffentlicht: {name}",
+            )
+
+        except BackgroundCancelled:
+            raise
+
+        except Exception as exc:
+            errors.append({
+                "vehicle": {
+                    "vin": vin,
+                    "name": name,
+                },
+                "error": str(exc),
+            })
+
+            log(
+                "WARNING",
+                f"Standort für {name} konnte nicht gelesen werden: {exc}",
+            )
+
+    return {
+        "ok": not errors,
+        "vehicles": results,
+        "errors": errors,
+    }
+
+
 def run_vehicle_poll(
     options,
     mqtt_bridge,
@@ -506,7 +591,20 @@ def main():
             # Ersten vollständigen Fahrzeug-Poll sofort ausführen.
             next_poll = now
 
+            # Standort erst nach dem ersten normalen Fahrzeug-Poll lesen.
+            # Dadurch stehen Discovery und Fahrzeugdaten zuerst bereit.
+            next_location_poll = (
+                now
+                + int(
+                    options.get(
+                        "location_poll_interval",
+                        900,
+                    )
+                )
+            )
+
             active_poll = None
+            active_location_poll = None
             active_healthcheck = None
 
             while True:
@@ -644,6 +742,63 @@ def main():
                         )
 
                     active_poll = None
+
+                # --------------------------------------------------
+                # Location poll
+                # --------------------------------------------------
+
+                if (
+                    active_location_poll is None
+                    and now >= next_location_poll
+                ):
+                    active_location_poll = jobs.submit(
+                        "location-poll",
+                        run_location_poll,
+                        mqtt_bridge,
+                        priority=PRIORITY_BACKGROUND,
+                        cancellable=True,
+                    )
+
+                    next_location_poll = (
+                        now
+                        + int(
+                            options.get(
+                                "location_poll_interval",
+                                900,
+                            )
+                        )
+                    )
+
+                if (
+                    active_location_poll is not None
+                    and active_location_poll.done_event.is_set()
+                ):
+                    try:
+                        result = active_location_poll.wait()
+
+                        log(
+                            "INFO",
+                            "Standort-Poll abgeschlossen: "
+                            + json.dumps(
+                                result,
+                                ensure_ascii=False,
+                            ),
+                        )
+
+                    except BackgroundCancelled:
+                        log(
+                            "INFO",
+                            "Standort-Poll zugunsten eines "
+                            "Benutzerkommandos abgebrochen.",
+                        )
+
+                    except Exception as exc:
+                        log(
+                            "ERROR",
+                            f"Standort-Poll fehlgeschlagen: {exc}",
+                        )
+
+                    active_location_poll = None
 
                 # --------------------------------------------------
                 # Connection healthcheck

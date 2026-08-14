@@ -7,6 +7,8 @@ import re
 import sys
 import time
 
+from job_queue import check_cancel
+
 from vw_ui import (
     UIError,
     all_nodes,
@@ -243,17 +245,35 @@ def return_to_vehicle_overview():
     ensure_vehicle_overview()
 
 
-def read_location(vin, marker_x=DEFAULT_MARKER_X, marker_y=DEFAULT_MARKER_Y):
+def read_location(
+    vin,
+    marker_x=DEFAULT_MARKER_X,
+    marker_y=DEFAULT_MARKER_Y,
+    cancel_event=None,
+):
+    check_cancel(cancel_event)
+
     start_app()
+
+    check_cancel(cancel_event)
     vehicle = select_vehicle_info(vin)
 
     share_open = False
     try:
+        check_cancel(cancel_event)
         open_navigation_tab()
+
+        check_cancel(cancel_event)
         center_on_vehicle()
+
+        check_cancel(cancel_event)
         root = open_vehicle_details(marker_x, marker_y)
+
+        check_cancel(cancel_event)
         _, preview = open_share_sheet(root)
         share_open = True
+
+        check_cancel(cancel_event)
 
         text = preview.attrib.get("text", "").strip()
         latitude, longitude = parse_location(text)
