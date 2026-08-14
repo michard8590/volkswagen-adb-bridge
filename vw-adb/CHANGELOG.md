@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Fix Home Assistant startup with s6-overlay v3 by disabling Docker init.
+
 ## 0.1.0
 
 - Initial experimental Home Assistant release.

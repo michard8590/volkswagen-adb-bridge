@@ -1,5 +1,5 @@
 name: Volkswagen ADB Bridge
-version: "0.1.0"
+version: "0.1.1"
 slug: vw_adb_bridge
 description: Volkswagen vehicle integration through the official Android app using ADB
 arch:
@@ -8,6 +8,7 @@ arch:
 startup: application
 boot: auto
 stage: experimental
+init: false
 
 host_network: true
 usb: true
