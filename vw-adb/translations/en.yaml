@@ -47,10 +47,6 @@ configuration:
     name: Poll interval
     description: Basic vehicle status interval in seconds.
 
-  detail_poll_interval:
-    name: Detail poll interval
-    description: Detailed vehicle status interval in seconds.
-
   location_poll_interval:
     name: Location poll interval
     description: Vehicle location interval in seconds.

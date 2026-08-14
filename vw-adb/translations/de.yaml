@@ -47,10 +47,6 @@ configuration:
     name: Poll-Intervall
     description: Intervall für den normalen Fahrzeugstatus in Sekunden.
 
-  detail_poll_interval:
-    name: Detail-Poll-Intervall
-    description: Intervall für detaillierte Fahrzeugdaten in Sekunden.
-
   location_poll_interval:
     name: Standort-Poll-Intervall
     description: Intervall für den Fahrzeugstandort in Sekunden.

@@ -1,5 +1,5 @@
 name: Volkswagen ADB Bridge
-version: "0.1.8"
+version: "0.1.9"
 slug: vw_adb_bridge
 description: Volkswagen vehicle integration through the official Android app using ADB
 arch:
@@ -31,7 +31,6 @@ options:
     device_serial: ""
 
   poll_interval: 300
-  detail_poll_interval: 900
   location_poll_interval: 900
   sync_if_older_than: 900
   sync_wait_timeout: 180
@@ -55,7 +54,6 @@ schema:
     device_serial: str
 
   poll_interval: "int(60,86400)"
-  detail_poll_interval: "int(60,86400)"
   location_poll_interval: "int(60,86400)"
   sync_if_older_than: "int(0,86400)"
   sync_wait_timeout: "int(10,600)"

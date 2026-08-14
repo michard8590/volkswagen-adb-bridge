@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.9
+
+- Simplify vehicle polling to one full poll cycle.
+- Remove the separate basic and detail poll schedulers.
+- Always include target state of charge and odometer in regular polling.
+- Remove detail-value cache handling and the detail poll interval option.
+- Refresh the complete vehicle state after user commands.
+- Publish verified target-SOC changes to Home Assistant immediately.
+
 ## 0.1.8
 
 - Add Home Assistant target charge control.

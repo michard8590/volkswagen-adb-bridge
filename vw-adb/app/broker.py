@@ -104,7 +104,6 @@ _vehicle_state_cache = {}
 def publish_vehicle_update(
     mqtt_bridge,
     vehicle_data,
-    poll_type,
 ):
     vehicle = vehicle_data.get("vehicle") or {}
     vin = str(vehicle.get("vin") or "").strip()
@@ -112,48 +111,91 @@ def publish_vehicle_update(
     if not vin:
         raise ValueError("Fahrzeugstatus ohne VIN")
 
-    previous = _vehicle_state_cache.get(vin)
-
-    merged = dict(vehicle_data)
-    merged["charge"] = dict(
-        vehicle_data.get("charge") or {}
-    )
-
-    if previous is not None:
-        previous_charge = previous.get("charge") or {}
-
-        if merged["charge"].get("target_soc") is None:
-            merged["charge"]["target_soc"] = (
-                previous_charge.get("target_soc")
-            )
-
-        if merged.get("odometer_km") is None:
-            merged["odometer_km"] = (
-                previous.get("odometer_km")
-            )
-
-    _vehicle_state_cache[vin] = merged
+    # Letzten vollständig gelesenen Zustand merken. Er kann nach einem
+    # bereits verifizierten Benutzerkommando sofort aktualisiert werden,
+    # ohne auf den nächsten Fahrzeug-Poll warten zu müssen.
+    _vehicle_state_cache[vin] = vehicle_data
 
     publish_vehicle_discovery(
         mqtt_bridge,
-        merged,
+        vehicle_data,
     )
 
     publish_vehicle_state(
         mqtt_bridge,
-        merged,
+        vehicle_data,
     )
 
     name = vehicle.get("name") or vin
 
     log(
         "INFO",
-        f"Fahrzeugstatus veröffentlicht: "
-        f"{name} ({poll_type})",
+        f"Fahrzeugstatus veröffentlicht: {name}",
     )
 
 
-def run_basic_poll(
+def publish_confirmed_command_state(
+    mqtt_bridge,
+    result,
+):
+    """
+    Einen bereits durch die VW-App verifizierten Command-Wert sofort
+    in den zuletzt bekannten Fahrzeugzustand übernehmen.
+
+    Der anschließende vollständige Poll bleibt die endgültige Kontrolle.
+    """
+    if not result.get("ok"):
+        return False
+
+    vehicle = result.get("vehicle") or {}
+    vin = str(vehicle.get("vin") or "").strip()
+
+    if not vin:
+        return False
+
+    previous = _vehicle_state_cache.get(vin)
+
+    # Ohne vorherigen vollständigen Fahrzeugstatus veröffentlichen wir
+    # keinen Teilzustand, weil sonst andere MQTT-Entities auf unknown
+    # springen könnten.
+    if previous is None:
+        return False
+
+    command = result.get("command")
+
+    if command != "target_soc":
+        return False
+
+    target_soc = result.get("target_soc")
+
+    if target_soc is None:
+        return False
+
+    updated = dict(previous)
+    updated["charge"] = dict(
+        previous.get("charge") or {}
+    )
+    updated["charge"]["target_soc"] = int(target_soc)
+
+    _vehicle_state_cache[vin] = updated
+
+    publish_vehicle_state(
+        mqtt_bridge,
+        updated,
+    )
+
+    name = vehicle.get("name") or vin
+
+    log(
+        "INFO",
+        f"Bestätigten Zielladestand sofort veröffentlicht: "
+        f"{name} = {target_soc} %",
+    )
+
+    return True
+
+
+def run_vehicle_poll(
     options,
     mqtt_bridge,
     cancel_event=None,
@@ -171,40 +213,10 @@ def run_basic_poll(
             "stop_app_after_poll",
             True,
         ),
-        include_details=False,
         cancel_event=cancel_event,
         on_vehicle=lambda vehicle_data: publish_vehicle_update(
             mqtt_bridge,
             vehicle_data,
-            "basic",
-        ),
-    )
-
-
-def run_detail_poll(
-    options,
-    mqtt_bridge,
-    cancel_event=None,
-):
-    return poll_once(
-        sync_if_older_than=options.get(
-            "sync_if_older_than",
-            900,
-        ),
-        sync_wait_timeout=options.get(
-            "sync_wait_timeout",
-            180,
-        ),
-        stop_after=options.get(
-            "stop_app_after_poll",
-            True,
-        ),
-        include_details=True,
-        cancel_event=cancel_event,
-        on_vehicle=lambda vehicle_data: publish_vehicle_update(
-            mqtt_bridge,
-            vehicle_data,
-            "detail",
         ),
     )
 
@@ -355,15 +367,10 @@ def main():
                 now + HEALTHCHECK_SECONDS
             )
 
-            # Ersten Basic-Poll sofort ausführen.
+            # Ersten vollständigen Fahrzeug-Poll sofort ausführen.
             next_poll = now
 
-            # Detailwerte etwas später lesen, damit nach dem Start
-            # zunächst schnell die normalen Fahrzeugwerte verfügbar sind.
-            next_detail_poll = now + 60
-
             active_poll = None
-            active_detail_poll = None
             active_healthcheck = None
 
             while True:
@@ -415,15 +422,16 @@ def main():
                         result
                     )
 
-                    # Nach einem Benutzerkommando den tatsächlichen
-                    # Fahrzeugzustand möglichst schnell erneut lesen.
-                    next_poll = time.monotonic()
+                    # Bereits durch die VW-App verifizierte Änderungen
+                    # sofort in Home Assistant sichtbar machen.
+                    publish_confirmed_command_state(
+                        mqtt_bridge,
+                        result,
+                    )
 
-                    # Der Zielladestand wird nur im Detail-Poll gelesen.
-                    # Nach einer Änderung deshalb auch diesen sofort
-                    # anfordern.
-                    if result.get("command") == "target_soc":
-                        next_detail_poll = time.monotonic()
+                    # Danach trotzdem den vollständigen Fahrzeugzustand
+                    # erneut lesen und damit das Ergebnis kontrollieren.
+                    next_poll = time.monotonic()
 
                     log(
                         "INFO",
@@ -437,7 +445,7 @@ def main():
                 pending_commands = remaining_commands
 
                 # --------------------------------------------------
-                # Basic poll
+                # Vehicle poll
                 # --------------------------------------------------
 
                 if (
@@ -445,8 +453,8 @@ def main():
                     and now >= next_poll
                 ):
                     active_poll = jobs.submit(
-                        "basic-poll",
-                        run_basic_poll,
+                        "vehicle-poll",
+                        run_vehicle_poll,
                         options,
                         mqtt_bridge,
                         priority=PRIORITY_POLL,
@@ -500,69 +508,6 @@ def main():
                         )
 
                     active_poll = None
-
-                # --------------------------------------------------
-                # Detail poll
-                # --------------------------------------------------
-
-                if (
-                    active_detail_poll is None
-                    and active_poll is None
-                    and now >= next_detail_poll
-                ):
-                    active_detail_poll = jobs.submit(
-                        "detail-poll",
-                        run_detail_poll,
-                        options,
-                        mqtt_bridge,
-                        priority=PRIORITY_BACKGROUND,
-                        cancellable=True,
-                    )
-
-                    next_detail_poll = (
-                        now
-                        + int(
-                            options.get(
-                                "detail_poll_interval",
-                                900,
-                            )
-                        )
-                    )
-
-                if (
-                    active_detail_poll is not None
-                    and active_detail_poll.done_event.is_set()
-                ):
-                    try:
-                        result = active_detail_poll.wait()
-
-                        mqtt_bridge.publish_state(
-                            result
-                        )
-
-                        log(
-                            "INFO",
-                            "Fahrzeug-Detail-Poll abgeschlossen: "
-                            + json.dumps(
-                                result,
-                                ensure_ascii=False,
-                            ),
-                        )
-
-                    except BackgroundCancelled:
-                        log(
-                            "INFO",
-                            "Fahrzeug-Detail-Poll zugunsten eines "
-                            "Benutzerkommandos abgebrochen.",
-                        )
-
-                    except Exception as exc:
-                        log(
-                            "ERROR",
-                            f"Fahrzeug-Detail-Poll fehlgeschlagen: {exc}",
-                        )
-
-                    active_detail_poll = None
 
                 # --------------------------------------------------
                 # Connection healthcheck

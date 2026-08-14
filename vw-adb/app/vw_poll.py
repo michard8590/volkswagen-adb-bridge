@@ -155,7 +155,6 @@ def poll_once(
     sync_if_older_than=DEFAULT_SYNC_IF_OLDER_THAN,
     sync_wait_timeout=DEFAULT_SYNC_WAIT_TIMEOUT,
     stop_after=True,
-    include_details=False,
     cancel_event=None,
     on_vehicle=None,
 ):
@@ -183,7 +182,7 @@ def poll_once(
                     vin,
                     sync_if_older_than,
                     sync_wait_timeout,
-                    include_details=include_details,
+                    include_details=True,
                     cancel_event=cancel_event,
                 )
 

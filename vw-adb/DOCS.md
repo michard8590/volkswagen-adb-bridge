@@ -99,7 +99,6 @@ The PIN is not sent through MQTT.
 ## Polling
 
 - `poll_interval`: normal status poll
-- `detail_poll_interval`: detailed-data interval
 - `location_poll_interval`: location interval
 - `sync_if_older_than`: request Volkswagen synchronization when data is older
   than this number of seconds
