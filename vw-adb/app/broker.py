@@ -21,6 +21,10 @@ from job_queue import (
     PRIORITY_POLL,
 )
 from mqtt_bridge import MQTTBridge
+from mqtt_discovery import (
+    publish_vehicle_discovery,
+    publish_vehicle_state,
+)
 from u2_connection import U2Connection
 from vw_poll import poll_once
 
@@ -361,6 +365,32 @@ def main():
                         mqtt_bridge.publish_state(
                             result
                         )
+
+                        # Zusätzlich pro Fahrzeug einen eigenen,
+                        # retained MQTT-State sowie Home-Assistant
+                        # Device Discovery veröffentlichen.
+                        for vehicle_data in result.get(
+                            "vehicles",
+                            [],
+                        ):
+                            try:
+                                publish_vehicle_discovery(
+                                    mqtt_bridge,
+                                    vehicle_data,
+                                )
+
+                                publish_vehicle_state(
+                                    mqtt_bridge,
+                                    vehicle_data,
+                                )
+
+                            except Exception as exc:
+                                log(
+                                    "ERROR",
+                                    "MQTT Discovery/State für "
+                                    "Fahrzeug fehlgeschlagen: "
+                                    f"{exc}",
+                                )
 
                         log(
                             "INFO",

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5
+
+- Add Home Assistant MQTT Device Discovery.
+- Create one Home Assistant device per discovered Volkswagen vehicle.
+- Add battery SOC, range, charging state, lock state, climate state,
+  last synchronization and synchronization age entities.
+- Publish retained MQTT state separately for every vehicle.
+
 ## 0.1.3
 
 - Improve Wireless Debugging pairing diagnostics.
