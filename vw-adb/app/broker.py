@@ -347,99 +347,107 @@ def run_location_poll(
     Ein Fehler bei einem Fahrzeug verhindert nicht die Verarbeitung
     der übrigen Fahrzeuge.
     """
-    vehicles = load_cache()
-
-    if not vehicles:
-        vehicles = list_vehicles()
-
-    results = []
-    errors = []
-
-    # Das aktuell in der VW-App geöffnete Fahrzeug zuerst lesen.
-    # Dadurch vermeiden wir einen unnötigen Fahrzeugwechsel.
     try:
-        current = current_vehicle()
-    except Exception:
-        current = None
+        vehicles = load_cache()
 
-    if current:
-        current_vin = current.get("vin")
+        if not vehicles:
+            vehicles = list_vehicles()
 
-        vehicles = sorted(
-            vehicles,
-            key=lambda item: (
-                0 if item.get("vin") == current_vin else 1
-            ),
-        )
+        results = []
+        errors = []
 
-    for item in vehicles:
-        check_cancel(cancel_event)
-
-        vin = str(item.get("vin") or "").strip()
-
-        if not vin:
-            continue
-
-        name = item.get("name") or vin
-
+        # Das aktuell in der VW-App geöffnete Fahrzeug zuerst lesen.
+        # Dadurch vermeiden wir einen unnötigen Fahrzeugwechsel.
         try:
-            result = read_location(
-                vin,
-                cancel_event=cancel_event,
+            current = current_vehicle()
+        except Exception:
+            current = None
+
+        if current:
+            current_vin = current.get("vin")
+
+            vehicles = sorted(
+                vehicles,
+                key=lambda item: (
+                    0 if item.get("vin") == current_vin else 1
+                ),
             )
 
-            location = result.get("location") or {}
+        for item in vehicles:
+            check_cancel(cancel_event)
 
-            latitude = location.get("latitude")
-            longitude = location.get("longitude")
+            vin = str(item.get("vin") or "").strip()
 
-            if latitude is None or longitude is None:
-                raise RuntimeError(
-                    "Standort enthält keine vollständigen Koordinaten"
+            if not vin:
+                continue
+
+            name = item.get("name") or vin
+
+            try:
+                result = read_location(
+                    vin,
+                    cancel_event=cancel_event,
                 )
 
-            publish_vehicle_location(
-                mqtt_bridge,
-                vin,
-                latitude,
-                longitude,
-            )
+                location = result.get("location") or {}
 
-            results.append(result)
+                latitude = location.get("latitude")
+                longitude = location.get("longitude")
 
-            log(
-                "INFO",
-                f"Fahrzeugstandort veröffentlicht: {name}",
-            )
+                if latitude is None or longitude is None:
+                    raise RuntimeError(
+                        "Standort enthält keine vollständigen Koordinaten"
+                    )
 
-        except BackgroundCancelled:
-            raise
+                publish_vehicle_location(
+                    mqtt_bridge,
+                    vin,
+                    latitude,
+                    longitude,
+                )
 
-        except Exception as exc:
-            errors.append({
-                "vehicle": {
-                    "vin": vin,
-                    "name": name,
-                },
-                "error": str(exc),
-            })
+                results.append(result)
 
-            log(
-                "WARNING",
-                f"Standort für {name} konnte nicht gelesen werden: {exc}",
-            )
+                log(
+                    "INFO",
+                    f"Fahrzeugstandort veröffentlicht: {name}",
+                )
 
-    result = {
-        "ok": not errors,
-        "vehicles": results,
-        "errors": errors,
-    }
+            except BackgroundCancelled:
+                raise
 
-    if stop_after:
-        stop_app()
+            except Exception as exc:
+                errors.append({
+                    "vehicle": {
+                        "vin": vin,
+                        "name": name,
+                    },
+                    "error": str(exc),
+                })
 
-    return result
+                log(
+                    "WARNING",
+                    f"Standort für {name} konnte nicht gelesen werden: {exc}",
+                )
 
+        result = {
+            "ok": not errors,
+            "vehicles": results,
+            "errors": errors,
+        }
+
+        return result
+
+    finally:
+        if stop_after:
+            try:
+                stop_app()
+            except Exception as exc:
+                log(
+                    "WARNING",
+                    f"VW-App konnte nach Standort-Poll "
+                    f"nicht beendet werden: {exc}",
+                )
 
 def run_vehicle_poll(
     options,
@@ -454,13 +462,17 @@ def run_vehicle_poll(
         )
 
     return poll_once(
-        sync_if_older_than=options.get(
-            "sync_if_older_than",
-            900,
+        sync_if_older_than=int(
+            options.get(
+                "sync_if_older_than",
+                900,
+            )
         ),
-        sync_wait_timeout=options.get(
-            "sync_wait_timeout",
-            180,
+        sync_wait_timeout=int(
+            options.get(
+                "sync_wait_timeout",
+                180,
+            )
         ),
         stop_after=stop_after,
         cancel_event=cancel_event,

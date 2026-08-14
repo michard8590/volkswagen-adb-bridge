@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.21
+
+- Ensure the Volkswagen app is stopped after a location poll even when the poll is cancelled or fails.
+- Parse synchronization timing options defensively as integers.
+- Accept both decimal point and decimal comma for temperature MQTT commands.
+
 ## 0.1.20
 
 - Keep the Volkswagen app open when a location poll immediately follows a vehicle poll.

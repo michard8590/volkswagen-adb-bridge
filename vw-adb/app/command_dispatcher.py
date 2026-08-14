@@ -86,8 +86,12 @@ def _temperature(vin, value):
     # Auch hier niemals vom aktuell ausgewählten Fahrzeug ausgehen.
     vehicle = select_vehicle_info(vin)
 
+    temperature = float(
+        str(value).strip().replace(",", ".")
+    )
+
     result = set_temperature(
-        float(value),
+        temperature,
     )
 
     return {
