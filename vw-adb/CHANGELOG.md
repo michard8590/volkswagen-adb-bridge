@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.24
+
+- Clean up stale Wireless ADB endpoints after a successful reconnect.
+- Disconnect only an old endpoint belonging to the same physical Android device.
+- Perform stale-endpoint cleanup only after the new ADB and uiautomator2 connection is fully verified.
+
 ## 0.1.23
 
 - Add German and English Volkswagen app support for charging controls and status parsing.

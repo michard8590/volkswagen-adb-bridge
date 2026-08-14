@@ -5,6 +5,7 @@ import uiautomator2 as u2
 
 from connection import (
     ConnectionError,
+    run_adb,
     select_device,
     verify_device,
 )
@@ -19,6 +20,10 @@ class U2Connection:
         self.u2 = None
 
     def connect(self):
+        # Den bisherigen Transport merken. Bei Android Wireless Debugging
+        # kann sich der dynamische TCP-Port bei einem Reconnect ändern.
+        previous_device = self.device
+
         self.close()
 
         device = select_device(self.options)
@@ -68,6 +73,65 @@ class U2Connection:
                 f"uiautomator2 verbunden, aber UIAutomator nicht "
                 f"ansprechbar: {exc}"
             ) from exc
+
+        # Erst nachdem der neue Transport vollständig verifiziert wurde,
+        # einen veralteten WLAN-ADB-Endpunkt desselben physischen Geräts
+        # entfernen. Das Cleanup darf die neue Verbindung niemals gefährden.
+        if (
+            previous_device is not None
+            and previous_device.transport == "wifi"
+            and device.transport == "wifi"
+            and previous_device.adb_serial != device.adb_serial
+        ):
+            old_physical = previous_device.physical_serial
+            new_physical = device.physical_serial
+
+            same_device = bool(
+                old_physical
+                and new_physical
+                and old_physical == new_physical
+            )
+
+            # Falls mDNS keine physische Seriennummer geliefert hat,
+            # ist derselbe Host ein vorsichtiger Fallback.
+            if (
+                not same_device
+                and (not old_physical or not new_physical)
+            ):
+                same_device = bool(
+                    previous_device.host
+                    and device.host
+                    and previous_device.host == device.host
+                )
+
+            if same_device:
+                try:
+                    output = run_adb(
+                        "disconnect",
+                        previous_device.adb_serial,
+                        timeout=10,
+                        check=False,
+                    )
+
+                    self.log(
+                        "INFO",
+                        "Alter WLAN-ADB-Endpunkt bereinigt: "
+                        f"{previous_device.adb_serial}"
+                        + (
+                            f" ({output})"
+                            if output
+                            else ""
+                        ),
+                    )
+
+                except Exception as exc:
+                    # Reine Hygiene: Ein fehlgeschlagenes Cleanup darf
+                    # die erfolgreich aufgebaute Verbindung nicht zerstören.
+                    self.log(
+                        "WARNING",
+                        "Alter WLAN-ADB-Endpunkt konnte nicht "
+                        f"bereinigt werden: {exc}",
+                    )
 
         self.log(
             "INFO",
