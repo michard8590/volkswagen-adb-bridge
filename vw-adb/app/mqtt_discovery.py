@@ -5,7 +5,10 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.13"
+BRIDGE_VERSION = "0.1.14"
+
+# Bereits migrierte Discovery-Geräte dieses Add-on-Laufs.
+_discovery_cleanup_done = set()
 
 
 def _safe_id(value):
@@ -91,33 +94,6 @@ def build_vehicle_discovery(vehicle_data):
                     "else none }}"
                 ),
             },
-            "charging_state": {
-                "p": "sensor",
-                "name": "Charging state",
-                "unique_id": f"{prefix}_charging_state",
-                "icon": "mdi:ev-station",
-                "value_template": (
-                    "{{ value_json.charge.state }}"
-                ),
-            },
-            "lock_state": {
-                "p": "sensor",
-                "name": "Lock state",
-                "unique_id": f"{prefix}_lock_state",
-                "icon": "mdi:car-door-lock",
-                "value_template": (
-                    "{{ value_json.lock.state }}"
-                ),
-            },
-            "climate_state": {
-                "p": "sensor",
-                "name": "Climate state",
-                "unique_id": f"{prefix}_climate_state",
-                "icon": "mdi:car-defrost-front",
-                "value_template": (
-                    "{{ value_json.climate.state }}"
-                ),
-            },
             "climate_control": {
                 "p": "climate",
                 "name": "Climate",
@@ -166,19 +142,6 @@ def build_vehicle_discovery(vehicle_data):
                 "device_class": "timestamp",
                 "value_template": (
                     "{{ value_json.sync.last_sync_at }}"
-                ),
-            },
-            "target_soc": {
-                "p": "sensor",
-                "name": "Target charge",
-                "unique_id": f"{prefix}_target_soc",
-                "device_class": "battery",
-                "unit_of_measurement": "%",
-                "entity_category": "diagnostic",
-                "value_template": (
-                    "{{ value_json.charge.target_soc "
-                    "if value_json.charge.target_soc is not none "
-                    "else none }}"
                 ),
             },
             "odometer": {
@@ -259,6 +222,20 @@ def build_vehicle_discovery(vehicle_data):
     # für genau dieses Fahrzeug tatsächlich bereitstellt.
     lock = vehicle_data.get("lock") or {}
 
+    # Fahrzeuge ohne Remote Lock/Unlock behalten den read-only
+    # Lock-State. Bei unterstützten Fahrzeugen übernimmt die native
+    # Lock-Entität sowohl Anzeige als auch Steuerung.
+    if lock.get("supported") is not True:
+        payload["cmps"]["lock_state"] = {
+            "p": "sensor",
+            "name": "Lock state",
+            "unique_id": f"{prefix}_lock_state",
+            "icon": "mdi:car-door-lock",
+            "value_template": (
+                "{{ value_json.lock.state }}"
+            ),
+        }
+
     if lock.get("supported") is True:
         payload["cmps"]["lock_control"] = {
             "p": "lock",
@@ -284,15 +261,71 @@ def build_vehicle_discovery(vehicle_data):
     return payload
 
 
+def build_obsolete_component_cleanup(vehicle_data):
+    """
+    Entfernt Discovery-Komponenten, die seit 0.1.14 durch native
+    steuerbare Entities ersetzt wurden.
+
+    Home Assistant verlangt bei Device Discovery für das Entfernen
+    einer einzelnen Komponente weiterhin mindestens deren Plattform.
+    """
+    normal = build_vehicle_discovery(
+        vehicle_data
+    )
+
+    lock = vehicle_data.get("lock") or {}
+
+    components = {
+        "charging_state": {
+            "p": "sensor",
+        },
+        "climate_state": {
+            "p": "sensor",
+        },
+        "target_soc": {
+            "p": "sensor",
+        },
+    }
+
+    # Nur beim Remote-Lock-fähigen Fahrzeug verschwindet der separate
+    # Lock-State-Sensor. Ohne Remote Lock bleibt er bestehen.
+    if lock.get("supported") is True:
+        components["lock_state"] = {
+            "p": "sensor",
+        }
+
+    cleanup = {
+        **normal,
+        "cmps": components,
+    }
+
+    return cleanup
+
+
 def publish_vehicle_discovery(mqtt_bridge, vehicle_data):
     vin = vehicle_data["vehicle"]["vin"]
+    topic = vehicle_discovery_topic(vin)
+
+    if vin not in _discovery_cleanup_done:
+        cleanup = build_obsolete_component_cleanup(
+            vehicle_data
+        )
+
+        mqtt_bridge.publish_json(
+            topic,
+            cleanup,
+            retain=True,
+            qos=1,
+        )
+
+        _discovery_cleanup_done.add(vin)
 
     payload = build_vehicle_discovery(
         vehicle_data
     )
 
     return mqtt_bridge.publish_json(
-        vehicle_discovery_topic(vin),
+        topic,
         payload,
         retain=True,
         qos=1,

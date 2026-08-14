@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.14
+
+- Remove redundant read-only entities replaced by native Home Assistant controls.
+- Remove the separate charging-state sensor in favor of the charging switch.
+- Remove the separate climate-state sensor in favor of the climate entity.
+- Remove the separate target-SOC sensor in favor of the target-charge number.
+- Remove the separate lock-state sensor when native remote Lock/Unlock is supported.
+- Keep the read-only lock-state sensor for vehicles without remote Lock/Unlock support.
+- Add a Home Assistant MQTT Device Discovery migration for obsolete entities.
+
 ## 0.1.13
 
 - Detect remote Lock/Unlock capability separately for every vehicle.
