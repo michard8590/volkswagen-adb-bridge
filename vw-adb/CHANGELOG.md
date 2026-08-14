@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.8
+
+- Add Home Assistant target charge control.
+- Add Home Assistant charging start/stop switch.
+- Use confirmed vehicle state instead of optimistic charging state.
+- Trigger an immediate detail refresh after changing target SOC.
+
 ## 0.1.7
 
 - Publish each vehicle to Home Assistant immediately after it has been polled.
