@@ -591,17 +591,10 @@ def main():
             # Ersten vollständigen Fahrzeug-Poll sofort ausführen.
             next_poll = now
 
-            # Standort erst nach dem ersten normalen Fahrzeug-Poll lesen.
-            # Dadurch stehen Discovery und Fahrzeugdaten zuerst bereit.
-            next_location_poll = (
-                now
-                + int(
-                    options.get(
-                        "location_poll_interval",
-                        900,
-                    )
-                )
-            )
+            # Standort beim Start ebenfalls sofort einreihen.
+            # Wegen der niedrigeren Priorität läuft zuerst der normale
+            # Fahrzeug-Poll und danach der Location-Poll.
+            next_location_poll = now
 
             active_poll = None
             active_location_poll = None

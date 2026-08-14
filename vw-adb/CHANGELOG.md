@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.16
+
+- Run the first vehicle location poll immediately after add-on startup.
+- Keep subsequent location updates on the configured location polling interval.
+
 ## 0.1.15
 
 - Add native Home Assistant MQTT device trackers for vehicle locations.
