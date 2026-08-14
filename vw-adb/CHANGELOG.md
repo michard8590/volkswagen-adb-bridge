@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.20
+
+- Keep the Volkswagen app open when a location poll immediately follows a vehicle poll.
+- Read the currently active vehicle location first to avoid an unnecessary vehicle switch.
+- Stop the Volkswagen app after the combined status and location polling sequence.
+
 ## 0.1.19
 
 - Recreate existing MQTT location trackers to remove stale inherited state topics.

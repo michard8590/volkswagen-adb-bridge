@@ -30,6 +30,7 @@ from mqtt_discovery import (
 from u2_connection import U2Connection
 from vw_poll import poll_once
 from vw_location import read_location
+from vw_ui import stop_app
 from vw_vehicle import current_vehicle, load_cache, list_vehicles
 
 
@@ -337,6 +338,7 @@ def publish_confirmed_command_state(
 
 def run_location_poll(
     mqtt_bridge,
+    stop_after=False,
     cancel_event=None,
 ):
     """
@@ -427,18 +429,30 @@ def run_location_poll(
                 f"Standort für {name} konnte nicht gelesen werden: {exc}",
             )
 
-    return {
+    result = {
         "ok": not errors,
         "vehicles": results,
         "errors": errors,
     }
+
+    if stop_after:
+        stop_app()
+
+    return result
 
 
 def run_vehicle_poll(
     options,
     mqtt_bridge,
     cancel_event=None,
+    stop_after=None,
 ):
+    if stop_after is None:
+        stop_after = options.get(
+            "stop_app_after_poll",
+            True,
+        )
+
     return poll_once(
         sync_if_older_than=options.get(
             "sync_if_older_than",
@@ -448,10 +462,7 @@ def run_vehicle_poll(
             "sync_wait_timeout",
             180,
         ),
-        stop_after=options.get(
-            "stop_app_after_poll",
-            True,
-        ),
+        stop_after=stop_after,
         cancel_event=cancel_event,
         on_vehicle=lambda vehicle_data: publish_vehicle_update(
             mqtt_bridge,
@@ -697,11 +708,23 @@ def main():
                     active_poll is None
                     and now >= next_poll
                 ):
+                    location_due_now = (
+                        active_location_poll is None
+                        and now >= next_location_poll
+                    )
+
                     active_poll = jobs.submit(
                         "vehicle-poll",
                         run_vehicle_poll,
                         options,
                         mqtt_bridge,
+                        stop_after=(
+                            options.get(
+                                "stop_app_after_poll",
+                                True,
+                            )
+                            and not location_due_now
+                        ),
                         priority=PRIORITY_POLL,
                         cancellable=True,
                     )
@@ -766,6 +789,10 @@ def main():
                         "location-poll",
                         run_location_poll,
                         mqtt_bridge,
+                        stop_after=options.get(
+                            "stop_app_after_poll",
+                            True,
+                        ),
                         priority=PRIORITY_BACKGROUND,
                         cancellable=True,
                     )
