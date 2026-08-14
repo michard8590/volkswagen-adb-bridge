@@ -14,12 +14,14 @@ RUN apk add --no-cache \
         curl \
         unzip \
         libstdc++ \
+        gcompat \
     && curl -fsSL \
         https://dl.google.com/android/repository/platform-tools_r37.0.0-linux.zip \
         -o /tmp/platform-tools.zip \
     && unzip /tmp/platform-tools.zip -d /opt \
     && ln -s /opt/platform-tools/adb /usr/local/bin/adb \
-    && rm -f /tmp/platform-tools.zip
+    && rm -f /tmp/platform-tools.zip \
+    && adb version
 
 COPY requirements.txt /requirements.txt
 

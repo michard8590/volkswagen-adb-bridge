@@ -116,7 +116,7 @@ def run_basic_poll(options, cancel_event=None):
 def main():
     log(
         "INFO",
-        "Volkswagen ADB Bridge 0.1.0 startet",
+        "Volkswagen ADB Bridge startet",
     )
 
     print_adb_version()

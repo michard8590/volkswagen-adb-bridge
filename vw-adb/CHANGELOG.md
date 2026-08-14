@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- Add glibc compatibility for the official Android Platform Tools on Alpine.
+- Verify ADB during the container build.
+- Remove hardcoded version number from startup log.
+
 ## 0.1.1
 
 - Fix Home Assistant startup with s6-overlay v3 by disabling Docker init.
