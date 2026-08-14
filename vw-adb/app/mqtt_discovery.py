@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.22"
+BRIDGE_VERSION = "0.1.23"
 
 # Bereits migrierte Discovery-Geräte dieses Add-on-Laufs.
 _discovery_cleanup_done = set()

@@ -72,14 +72,28 @@ def get_climate_tile_status(root):
     for desc in descriptions:
         lower = desc.lower()
 
-        if (
-            "vorklimatisierung" in lower
-            or "klimatisierung" in lower
+        if any(
+            phrase in lower
+            for phrase in (
+                "vorklimatisierung",
+                "klimatisierung",
+                "air conditioning",
+                "climate control",
+                "climatisation",
+                "pre-conditioning",
+                "preconditioning",
+            )
         ):
-            if ". an." in lower:
+            if (
+                ". an." in lower
+                or ". on." in lower
+            ):
                 return "running"
 
-            if ". aus." in lower:
+            if (
+                ". aus." in lower
+                or ". off." in lower
+            ):
                 return "stopped"
 
     return None

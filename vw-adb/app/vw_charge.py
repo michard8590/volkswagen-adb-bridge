@@ -34,8 +34,16 @@ COMMAND_TIMEOUT = 30.0
 DETAIL_TIMEOUT = 8.0
 TARGET_SOC_WAIT_TIMEOUT = 8.0
 
-CHARGE_START = "Laden starten"
-CHARGE_STOP = "Laden stoppen"
+# Accessibility-Texte der deutschen und englischen VW-App.
+# str.startswith() akzeptiert direkt ein Tuple von Präfixen.
+CHARGE_START = (
+    "Laden starten",
+    "Start charging",
+)
+CHARGE_STOP = (
+    "Laden stoppen",
+    "Stop charging",
+)
 
 SOC_POSITIONS = {
     50: 0.10,
@@ -86,7 +94,7 @@ def parse_remaining_minutes(text):
     found = False
 
     match = re.search(
-        r"(\d+)\s*stunden?",
+        r"(\d+)\s*(?:stunden?|hours?)",
         text,
     )
 
@@ -97,7 +105,7 @@ def parse_remaining_minutes(text):
         found = True
 
     match = re.search(
-        r"(\d+)\s*minuten?",
+        r"(\d+)\s*(?:minuten?|minutes?)",
         text,
     )
 
@@ -151,14 +159,19 @@ def parse_dialog(root):
             if value is not None:
                 result["soc"] = value
 
-        if not desc.startswith(
-            "Ladedetails."
+        desc_lower = desc.lower()
+
+        if not desc_lower.startswith(
+            (
+                "ladedetails",
+                "charging details",
+            )
         ):
             continue
 
         match = re.search(
-            r"Zielladestand:\s*"
-            r"(\d+)\s*Prozent",
+            r"(?:Zielladestand|Target state of charge):\s*"
+            r"(\d+)\s*(?:Prozent|Percent|%)",
             desc,
             re.IGNORECASE,
         )
@@ -169,9 +182,10 @@ def parse_dialog(root):
             )
 
         match = re.search(
-            r"Ladegeschwindigkeit:\s*"
+            r"(?:Ladegeschwindigkeit|Charging speed):\s*"
             r"(\d+(?:[.,]\d+)?)\s*"
-            r"Kilometer pro Stunde",
+            r"(?:Kilometer pro Stunde|Kilometres per hour|"
+            r"Kilometers per hour|km/h)",
             desc,
             re.IGNORECASE,
         )
@@ -187,9 +201,9 @@ def parse_dialog(root):
             )
 
         match = re.search(
-            r"Ladeleistung:\s*"
+            r"(?:Ladeleistung|Charging power):\s*"
             r"(\d+(?:[.,]\d+)?)\s*"
-            r"Kilowatt",
+            r"(?:Kilowatt|Kilowatts|kW)",
             desc,
             re.IGNORECASE,
         )
@@ -421,7 +435,8 @@ def parse_overview_charge_status(root):
 
     range_km = None
     match = re.search(
-        r"batteriereichweite:\s*(\d+)\s*kilometer",
+        r"(?:batteriereichweite|battery range):\s*"
+        r"(\d+)\s*(?:kilometer|kilometres|kilometers|km)",
         combined,
         re.IGNORECASE,
     )
@@ -433,6 +448,8 @@ def parse_overview_charge_status(root):
     if (
         "ladekabel verbinden" in lower
         or "nicht verbunden" in lower
+        or "connect charging cable" in lower
+        or "not connected" in lower
     ):
         state = "stopped"
         cable_connected = False
@@ -449,6 +466,17 @@ def parse_overview_charge_status(root):
             "nicht ladend",
             "abgebrochen",
             "ladebereit",
+            "charging stopped",
+            "charge stopped",
+            "charging finished",
+            "charging completed",
+            "charge completed",
+            "charging paused",
+            "charge paused",
+            "not charging",
+            "ready to charge",
+            "cancelled",
+            "canceled",
         )
     ):
         state = "stopped"
@@ -456,6 +484,7 @@ def parse_overview_charge_status(root):
     elif (
         "lädt gerade" in lower
         or "wird geladen" in lower
+        or "is charging" in lower
         or re.search(
             r"(?:^|[•.\s])lädt(?:[•.\s]|$)",
             lower,
@@ -466,7 +495,7 @@ def parse_overview_charge_status(root):
     elif re.search(
         # Nur isoliertes "Laden", z.B. "• Laden •" oder "Laden.".
         # "Laden gestoppt" darf hier ausdrücklich nicht matchen.
-        r"(?:^|[•.\s])laden(?=\s*(?:[•.]|$))",
+        r"(?:^|[•.\s])(?:laden|charging)(?=\s*(?:[•.]|$))",
         lower,
     ):
         state = "charging"
@@ -476,7 +505,10 @@ def parse_overview_charge_status(root):
         state = "unknown"
         cable_connected = (
             True
-            if "verbunden" in lower
+            if (
+                "verbunden" in lower
+                or "connected" in lower
+            )
             else None
         )
 

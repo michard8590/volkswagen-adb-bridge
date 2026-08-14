@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.23
+
+- Add German and English Volkswagen app support for charging controls and status parsing.
+- Parse charging details, range, charging state, power and remaining time in both languages.
+- Add German and English climate overview status detection.
+
 ## 0.1.22
 
 - Handle stale and current Wireless ADB mDNS endpoints for the same Android device.
