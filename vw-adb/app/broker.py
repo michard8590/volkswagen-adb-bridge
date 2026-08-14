@@ -139,18 +139,36 @@ def main():
                 f"ADB-Verbindungsmodus: {mode}",
             )
 
-            if maybe_pair_wifi(options):
-                log(
-                    "INFO",
-                    "WLAN-ADB-Pairing erfolgreich.",
-                )
-
             connection = U2Connection(
                 options,
                 log=log,
             )
 
-            connection.connect()
+            # Zuerst immer die bereits vorhandene ADB-Kopplung verwenden.
+            # Ein eventuell noch gespeicherter Pairing-Code darf einen
+            # bereits gekoppelten Start nicht erneut ins Pairing zwingen.
+            try:
+                connection.connect()
+
+            except ConnectionError as first_error:
+                log(
+                    "WARNING",
+                    "Bestehende ADB-Verbindung konnte nicht hergestellt "
+                    "werden. Prüfe, ob ein Wireless-Debugging-Pairing "
+                    "konfiguriert ist.",
+                )
+
+                if not maybe_pair_wifi(options):
+                    raise first_error
+
+                log(
+                    "INFO",
+                    "WLAN-ADB-Pairing erfolgreich.",
+                )
+
+                # Nach erfolgreichem Pairing den normalen Connect-Port
+                # erneut per mDNS suchen und verbinden.
+                connection.connect()
 
             log(
                 "INFO",

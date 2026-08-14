@@ -27,21 +27,67 @@ mDNS.
 
 ## First Wi-Fi pairing
 
-On Android:
+Wireless Debugging requires a one-time pairing between the Android phone and
+Volkswagen ADB Bridge.
 
-1. Enable Developer options.
-2. Enable Wireless debugging.
+### Step 1: Prepare Android
+
+On the Android phone:
+
+1. Open **Settings → Developer options → Wireless debugging**.
+2. Enable **Wireless debugging**.
 3. Open **Pair device with pairing code**.
-4. Enter the displayed six-digit code into `wifi.pairing.code`.
-5. Start the app.
+4. Keep this dialog open.
 
-With automatic discovery enabled, pairing IP address and port normally do not
-need to be entered manually.
+Android now displays a temporary six-digit pairing code.
 
-After successful pairing the stored ADB key is retained in `/data/.android`.
+### Step 2: Configure Volkswagen ADB Bridge
 
-The pairing code is temporary and can be cleared from the configuration after
-pairing.
+In the Home Assistant app configuration:
+
+- set `connection_mode` to `auto` or `wifi`
+- enable `wifi.autodiscovery`
+- enter the six-digit Android code into `wifi.pairing.code`
+- normally leave `wifi.pairing.host` empty
+- normally leave `wifi.pairing.port` at `0`
+
+With Auto Discovery enabled, Volkswagen ADB Bridge discovers the temporary
+Android pairing IP address and port automatically using mDNS.
+
+### Step 3: Start the app
+
+Start Volkswagen ADB Bridge while the Android **Pair device with pairing
+code** dialog is still open.
+
+A successful first connection contains a log entry similar to:
+
+    WLAN-ADB-Pairing erfolgreich.
+
+After pairing, the bridge stores its ADB key persistently in
+`/data/.android`.
+
+### Later starts
+
+Pairing is normally required only once.
+
+On later starts Volkswagen ADB Bridge first tries the existing ADB
+authorization. It does not pair again when the existing authorization still
+works.
+
+The Android Wireless Debugging connect port may change. The bridge discovers
+the current port automatically using mDNS.
+
+### Pairing again
+
+Repeat the pairing process if:
+
+- Android's Wireless Debugging authorization was revoked,
+- the paired device was removed in Android,
+- the Home Assistant app data was deleted,
+- or the persistent ADB key was otherwise lost.
+
+The pairing code is temporary. Never reuse an old Android pairing code.
+
 
 ## Volkswagen S-PIN
 
