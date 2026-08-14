@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.17"
+BRIDGE_VERSION = "0.1.18"
 
 # Bereits migrierte Discovery-Geräte dieses Add-on-Laufs.
 _discovery_cleanup_done = set()
@@ -66,13 +66,13 @@ def build_vehicle_discovery(vehicle_data):
             "name": BRIDGE_NAME,
             "sw": BRIDGE_VERSION,
         },
-        "state_topic": vehicle_state_topic(vin),
         "availability_topic": "vw_adb/availability",
         "payload_available": "online",
         "payload_not_available": "offline",
         "qos": 1,
         "cmps": {
             "soc": {
+                "state_topic": vehicle_state_topic(vin),
                 "p": "sensor",
                 "name": "Battery",
                 "unique_id": f"{prefix}_soc",
@@ -86,6 +86,7 @@ def build_vehicle_discovery(vehicle_data):
                 ),
             },
             "range": {
+                "state_topic": vehicle_state_topic(vin),
                 "p": "sensor",
                 "name": "Range",
                 "unique_id": f"{prefix}_range",
@@ -140,6 +141,7 @@ def build_vehicle_discovery(vehicle_data):
                 "optimistic": False,
             },
             "last_sync": {
+                "state_topic": vehicle_state_topic(vin),
                 "p": "sensor",
                 "name": "Last synchronization",
                 "unique_id": f"{prefix}_last_sync",
@@ -149,6 +151,7 @@ def build_vehicle_discovery(vehicle_data):
                 ),
             },
             "odometer": {
+                "state_topic": vehicle_state_topic(vin),
                 "p": "sensor",
                 "name": "Odometer",
                 "unique_id": f"{prefix}_odometer",
@@ -163,6 +166,7 @@ def build_vehicle_discovery(vehicle_data):
                 ),
             },
             "target_soc_control": {
+                "state_topic": vehicle_state_topic(vin),
                 "p": "number",
                 "name": "Target charge",
                 "unique_id": f"{prefix}_target_soc_control",
@@ -185,6 +189,7 @@ def build_vehicle_discovery(vehicle_data):
                 ),
             },
             "charging_control": {
+                "state_topic": vehicle_state_topic(vin),
                 "p": "switch",
                 "name": "Charging",
                 "unique_id": f"{prefix}_charging_control",
@@ -205,6 +210,7 @@ def build_vehicle_discovery(vehicle_data):
                 "optimistic": False,
             },
             "sync_age": {
+                "state_topic": vehicle_state_topic(vin),
                 "p": "sensor",
                 "name": "Synchronization age",
                 "unique_id": f"{prefix}_sync_age",
@@ -240,6 +246,7 @@ def build_vehicle_discovery(vehicle_data):
     # Lock-Entität sowohl Anzeige als auch Steuerung.
     if lock.get("supported") is not True:
         payload["cmps"]["lock_state"] = {
+            "state_topic": vehicle_state_topic(vin),
             "p": "sensor",
             "name": "Lock state",
             "unique_id": f"{prefix}_lock_state",
@@ -251,6 +258,7 @@ def build_vehicle_discovery(vehicle_data):
 
     if lock.get("supported") is True:
         payload["cmps"]["lock_control"] = {
+            "state_topic": vehicle_state_topic(vin),
             "p": "lock",
             "name": "Lock",
             "unique_id": f"{prefix}_lock_control",

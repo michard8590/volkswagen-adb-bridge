@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.18
+
+- Fix MQTT GPS device trackers remaining in unknown state.
+- Stop sharing the vehicle state topic with every Home Assistant component.
+- Assign vehicle state topics explicitly only to components that require them.
+- Allow location trackers to derive their state directly from GPS coordinates and Home Assistant zones.
+
 ## 0.1.17
 
 - Retry normal Wireless ADB mDNS discovery during add-on startup.
