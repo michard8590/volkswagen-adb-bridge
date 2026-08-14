@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- Improve Wireless Debugging pairing diagnostics.
+- Retry mDNS pairing-service discovery while a pairing code is configured.
+- Report a clear error when the Android pairing dialog is not discoverable.
+
 ## 0.1.2
 
 - Add glibc compatibility for the official Android Platform Tools on Alpine.

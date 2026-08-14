@@ -345,14 +345,31 @@ def maybe_pair_wifi(options):
         options.get("adb_device_serial", "") or ""
     ).strip()
 
-    service = discover_pairing_service(
-        preferred_serial=preferred_serial,
-    )
+    # Der Android-Pairing-Service existiert nur solange der
+    # Dialog "Gerät mit Kopplungscode koppeln" geöffnet ist.
+    # Bei gesetztem Pairing-Code deshalb einige Sekunden warten,
+    # statt nach einem einzelnen mDNS-Snapshot still weiterzulaufen.
+    service = None
 
-    # Kein Pairing-Dialog offen ist kein fataler Fehler.
-    # Das Gerät könnte bereits gekoppelt sein.
+    for attempt in range(3):
+        service = discover_pairing_service(
+            preferred_serial=preferred_serial,
+        )
+
+        if service:
+            break
+
+        if attempt < 2:
+            time.sleep(1.0)
+
     if not service:
-        return False
+        raise ConnectionError(
+            "Pairing-Code ist gesetzt, aber kein Android-"
+            "Pairing-Service per mDNS gefunden. "
+            "Auf dem Android-Gerät 'Gerät mit Kopplungscode "
+            "koppeln' öffnen und den Dialog während des "
+            "Add-on-Starts geöffnet lassen."
+        )
 
     return pair_wifi(
         service["host"],
