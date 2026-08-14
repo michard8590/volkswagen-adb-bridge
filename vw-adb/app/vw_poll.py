@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from job_queue import BackgroundCancelled, check_cancel
 from vw_charge import read_poll_charge_status, read_target_soc_setting
-from vw_climate import get_climate_tile_status
+from vw_climate import get_climate_tile_status, read_status as read_climate_status
 from vw_odometer import read_odometer_km
 from vw_ui import start_app, stop_app
 from vw_vehicle import (
@@ -102,6 +102,8 @@ def poll_vehicle(
         check_cancel(cancel_event)
 
         odometer_km = None
+        climate_details = None
+
         if include_details:
             charge["target_soc"] = read_target_soc_setting()
 
@@ -112,13 +114,34 @@ def poll_vehicle(
             check_cancel(cancel_event)
 
             odometer_km = read_odometer_km()
+
+            check_cancel(cancel_event)
+
+            ensure_vehicle_overview()
+
+            check_cancel(cancel_event)
+
+            climate_details = read_climate_status()
     finally:
         root = ensure_vehicle_overview()
 
     # Header/Climate erst nach dem Cleanup lesen, damit die Werte sicher
     # aus der Fahrzeugübersicht stammen.
     header = read_overview_header_info(root)
+
     climate_state = get_climate_tile_status(root) or "unknown"
+    climate_temperature = None
+
+    if climate_details is not None:
+        if climate_details.get("state") not in (
+            None,
+            "unknown",
+        ):
+            climate_state = climate_details["state"]
+
+        climate_temperature = climate_details.get(
+            "target_temperature"
+        )
 
     # Lock state priority:
     # 1. explicit wording in the current overview header

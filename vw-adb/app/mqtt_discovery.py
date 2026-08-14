@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.10"
+BRIDGE_VERSION = "0.1.11"
 
 
 def _safe_id(value):
@@ -117,6 +117,47 @@ def build_vehicle_discovery(vehicle_data):
                 "value_template": (
                     "{{ value_json.climate.state }}"
                 ),
+            },
+            "climate_control": {
+                "p": "climate",
+                "name": "Climate",
+                "unique_id": f"{prefix}_climate_control",
+                "icon": "mdi:car-defrost-front",
+                "modes": [
+                    "off",
+                    "auto",
+                ],
+                "mode_command_topic": "vw_adb/command",
+                "mode_command_template": (
+                    '{"command":"climate_'
+                    '{{ "stop" if value == "off" else "start" }}'
+                    '","vin":"'
+                    + vin
+                    + '"}'
+                ),
+                "mode_state_topic": vehicle_state_topic(vin),
+                "mode_state_template": (
+                    '{{ "auto" if value_json.climate.state == '
+                    '"running" else "off" }}'
+                ),
+                "temperature_command_topic": "vw_adb/command",
+                "temperature_command_template": (
+                    '{"command":"temperature","vin":"'
+                    + vin
+                    + '","value":{{ value | float }}}'
+                ),
+                "temperature_state_topic": vehicle_state_topic(vin),
+                "temperature_state_template": (
+                    "{{ value_json.climate.target_temperature "
+                    "if value_json.climate.target_temperature "
+                    "is not none else none }}"
+                ),
+                "temperature_unit": "C",
+                "min_temp": 10.0,
+                "max_temp": 35.0,
+                "temp_step": 0.5,
+                "precision": 0.5,
+                "optimistic": False,
             },
             "last_sync": {
                 "p": "sensor",

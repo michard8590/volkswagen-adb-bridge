@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.11
+
+- Add a native Home Assistant climate entity for every vehicle.
+- Add remote climate start and stop control from Home Assistant.
+- Add climate target-temperature control in 0.5 °C steps.
+- Include climate target temperature in full vehicle polling.
+- Publish verified climate state changes to Home Assistant immediately.
+- Publish verified climate temperature changes to Home Assistant immediately.
+- Keep the full vehicle poll as final command-state verification.
+
 ## 0.1.10
 
 - Publish verified charging start/stop changes to Home Assistant immediately.

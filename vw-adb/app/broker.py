@@ -166,6 +166,9 @@ def publish_confirmed_command_state(
     updated["charge"] = dict(
         previous.get("charge") or {}
     )
+    updated["climate"] = dict(
+        previous.get("climate") or {}
+    )
 
     message = None
 
@@ -235,6 +238,46 @@ def publish_confirmed_command_state(
         message = (
             f"Bestätigten Ladestatus sofort veröffentlicht: "
             f"{verified_state}"
+        )
+
+    # --------------------------------------------------------
+    # Klimatisierung Start / Stop
+    # --------------------------------------------------------
+    elif command in (
+        "climate_start",
+        "climate_stop",
+    ):
+        climate_state = result.get("state")
+
+        if climate_state not in (
+            "running",
+            "stopped",
+        ):
+            return False
+
+        updated["climate"]["state"] = climate_state
+
+        message = (
+            f"Bestätigten Klimastatus sofort veröffentlicht: "
+            f"{climate_state}"
+        )
+
+    # --------------------------------------------------------
+    # Klima-Zieltemperatur
+    # --------------------------------------------------------
+    elif command == "temperature":
+        temperature = result.get("temperature")
+
+        if temperature is None:
+            return False
+
+        updated["climate"]["target_temperature"] = float(
+            temperature
+        )
+
+        message = (
+            f"Bestätigte Klima-Zieltemperatur sofort veröffentlicht: "
+            f"{float(temperature):.1f} °C"
         )
 
     else:
