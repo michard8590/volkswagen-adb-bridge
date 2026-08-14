@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.17
+
+- Retry normal Wireless ADB mDNS discovery during add-on startup.
+- Improve reconnection when Android changes the Wireless Debugging port.
+- Do not treat a stored pairing code as a request to pair again when no pairing service is active.
+- Fix cancellation handling in the location poll.
+
 ## 0.1.16
 
 - Run the first vehicle location poll immediately after add-on startup.

@@ -363,13 +363,10 @@ def maybe_pair_wifi(options):
             time.sleep(1.0)
 
     if not service:
-        raise ConnectionError(
-            "Pairing-Code ist gesetzt, aber kein Android-"
-            "Pairing-Service per mDNS gefunden. "
-            "Auf dem Android-Gerät 'Gerät mit Kopplungscode "
-            "koppeln' öffnen und den Dialog während des "
-            "Add-on-Starts geöffnet lassen."
-        )
+        # Ein gespeicherter Pairing-Code bedeutet nicht, dass erneut
+        # gekoppelt werden muss. Der Pairing-Service existiert nur,
+        # während Android ausdrücklich den Pairing-Dialog anzeigt.
+        return False
 
     return pair_wifi(
         service["host"],
@@ -434,39 +431,54 @@ def connect_wifi_service(service):
     )
 
 
-def discover_wifi(preferred_serial=""):
-    text = read_mdns_services()
-    services = parse_mdns_services(text)
+def discover_wifi(
+    preferred_serial="",
+    attempts=4,
+    delay=1.0,
+):
+    """
+    Sucht den normalen Android-Wireless-Debugging-Connect-Service.
 
-    if preferred_serial:
-        services = [
-            service
-            for service in services
-            if service.get("serial")
-            == preferred_serial
-        ]
+    Android kann den _adb-tls-connect._tcp-Dienst nach einem
+    Add-on-/ADB-Neustart verzögert per mDNS veröffentlichen. Deshalb
+    nicht nach einem einzelnen Snapshot aufgeben.
+    """
+    for attempt in range(attempts):
+        text = read_mdns_services()
+        services = parse_mdns_services(text)
 
-    if not services:
-        return None
+        if preferred_serial:
+            services = [
+                service
+                for service in services
+                if service.get("serial")
+                == preferred_serial
+            ]
 
-    if len(services) > 1 and not preferred_serial:
-        details = ", ".join(
-            (
-                f"{s.get('name') or s.get('model') or '?'} "
-                f"({s.get('serial') or '?'})"
+        if services:
+            if len(services) > 1 and not preferred_serial:
+                details = ", ".join(
+                    (
+                        f"{item.get('name') or item.get('model') or '?'} "
+                        f"({item.get('serial') or '?'})"
+                    )
+                    for item in services
+                )
+
+                raise ConnectionError(
+                    "Mehrere WLAN-ADB-Geräte gefunden: "
+                    f"{details}. Bitte adb_device_serial "
+                    "konfigurieren."
+                )
+
+            return connect_wifi_service(
+                services[0]
             )
-            for s in services
-        )
 
-        raise ConnectionError(
-            "Mehrere WLAN-ADB-Geräte gefunden: "
-            f"{details}. Bitte adb_device_serial "
-            "konfigurieren."
-        )
+        if attempt < attempts - 1:
+            time.sleep(delay)
 
-    return connect_wifi_service(
-        services[0]
-    )
+    return None
 
 
 def connect_wifi_manual(host, port):

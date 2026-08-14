@@ -16,6 +16,7 @@ from connection import (
 )
 from job_queue import (
     BackgroundCancelled,
+    check_cancel,
     UIJobQueue,
     PRIORITY_BACKGROUND,
     PRIORITY_POLL,
