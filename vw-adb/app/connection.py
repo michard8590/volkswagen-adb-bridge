@@ -442,7 +442,14 @@ def discover_wifi(
     Android kann den _adb-tls-connect._tcp-Dienst nach einem
     Add-on-/ADB-Neustart verzögert per mDNS veröffentlichen. Deshalb
     nicht nach einem einzelnen Snapshot aufgeben.
+
+    Bei einem Wechsel des dynamischen Wireless-ADB-Ports können alter
+    und neuer mDNS-Endpunkt desselben Geräts kurzfristig gleichzeitig
+    sichtbar sein. Solche Endpunkte gelten nicht als mehrere Geräte
+    und werden nacheinander ausprobiert.
     """
+    last_connection_error = None
+
     for attempt in range(attempts):
         text = read_mdns_services()
         services = parse_mdns_services(text)
@@ -451,35 +458,52 @@ def discover_wifi(
             services = [
                 service
                 for service in services
-                if service.get("serial")
-                == preferred_serial
+                if service.get("serial") == preferred_serial
             ]
 
         if services:
-            if len(services) > 1 and not preferred_serial:
+            # Mehrere mDNS-Einträge können lediglich alte und neue
+            # Ports desselben physischen Android-Geräts darstellen.
+            #
+            # Eine vorhandene physische Seriennummer ist die
+            # zuverlässigste Identität. Fehlt sie, verwenden wir
+            # ersatzweise den Host.
+            identities = {
+                service.get("serial") or service.get("host")
+                for service in services
+            }
+
+            if len(identities) > 1 and not preferred_serial:
                 details = ", ".join(
                     (
                         f"{item.get('name') or item.get('model') or '?'} "
-                        f"({item.get('serial') or '?'})"
+                        f"({item.get('serial') or '?'}, "
+                        f"{item.get('host')}:{item.get('port')})"
                     )
                     for item in services
                 )
 
                 raise ConnectionError(
-                    "Mehrere WLAN-ADB-Geräte gefunden: "
-                    f"{details}. Bitte adb_device_serial "
-                    "konfigurieren."
+                    "Mehrere unterschiedliche WLAN-ADB-Geräte gefunden: "
+                    f"{details}. Bitte adb_device_serial konfigurieren."
                 )
 
-            return connect_wifi_service(
-                services[0]
-            )
+            # Bei einem Portwechsel kann der erste mDNS-Eintrag bereits
+            # veraltet sein. Deshalb alle passenden Endpunkte probieren.
+            for service in services:
+                try:
+                    return connect_wifi_service(service)
+
+                except ConnectionError as exc:
+                    last_connection_error = exc
 
         if attempt < attempts - 1:
             time.sleep(delay)
 
-    return None
+    if last_connection_error is not None:
+        raise last_connection_error
 
+    return None
 
 def connect_wifi_manual(host, port):
     if not host or not port:

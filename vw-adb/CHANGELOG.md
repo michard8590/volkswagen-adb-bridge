@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.22
+
+- Handle stale and current Wireless ADB mDNS endpoints for the same Android device.
+- Try all matching Wireless ADB endpoints when Android changes its dynamic debugging port.
+- Distinguish multiple physical Android devices from multiple ports advertised for one device.
+
 ## 0.1.21
 
 - Ensure the Volkswagen app is stopped after a location poll even when the poll is cancelled or fails.
