@@ -139,8 +139,8 @@ def publish_confirmed_command_state(
     result,
 ):
     """
-    Einen bereits durch die VW-App verifizierten Command-Wert sofort
-    in den zuletzt bekannten Fahrzeugzustand übernehmen.
+    Bereits durch die VW-App bestätigte Command-Werte sofort in den
+    zuletzt bekannten Fahrzeugzustand übernehmen.
 
     Der anschließende vollständige Poll bleibt die endgültige Kontrolle.
     """
@@ -155,27 +155,90 @@ def publish_confirmed_command_state(
 
     previous = _vehicle_state_cache.get(vin)
 
-    # Ohne vorherigen vollständigen Fahrzeugstatus veröffentlichen wir
-    # keinen Teilzustand, weil sonst andere MQTT-Entities auf unknown
-    # springen könnten.
+    # Ohne vorherigen vollständigen Fahrzeugstatus keinen Teilzustand
+    # veröffentlichen, da sonst andere MQTT-Entities auf unknown springen.
     if previous is None:
         return False
 
     command = result.get("command")
 
-    if command != "target_soc":
-        return False
-
-    target_soc = result.get("target_soc")
-
-    if target_soc is None:
-        return False
-
     updated = dict(previous)
     updated["charge"] = dict(
         previous.get("charge") or {}
     )
-    updated["charge"]["target_soc"] = int(target_soc)
+
+    message = None
+
+    # --------------------------------------------------------
+    # Zielladestand
+    # --------------------------------------------------------
+    if command == "target_soc":
+        target_soc = result.get("target_soc")
+
+        if target_soc is None:
+            return False
+
+        updated["charge"]["target_soc"] = int(target_soc)
+
+        message = (
+            f"Bestätigten Zielladestand sofort veröffentlicht: "
+            f"{target_soc} %"
+        )
+
+    # --------------------------------------------------------
+    # Laden Start / Stop
+    # --------------------------------------------------------
+    elif command in (
+        "charge_start",
+        "charge_stop",
+    ):
+        charge_result = result.get("charge")
+
+        # set_charge_state kann einen vollständigen Charge-Status
+        # zurückliefern. Bekannte Werte direkt übernehmen.
+        if isinstance(charge_result, dict):
+            for key, value in charge_result.items():
+                if value is not None:
+                    updated["charge"][key] = value
+
+            verified_state = charge_result.get("state")
+
+        else:
+            verified_state = charge_result
+
+        # Falls nur der Zustand selbst zurückgegeben wurde.
+        if isinstance(verified_state, str):
+            verified_state = verified_state.strip().lower()
+
+            state_map = {
+                "charging": "charging",
+                "stopped": "stopped",
+                "start": "charging",
+                "stop": "stopped",
+            }
+
+            verified_state = state_map.get(
+                verified_state,
+                verified_state,
+            )
+
+        if verified_state not in (
+            "charging",
+            "stopped",
+        ):
+            # Nichts erfinden. Wenn kein eindeutig bestätigter Zustand
+            # vorliegt, übernimmt der anschließende Full-Poll.
+            return False
+
+        updated["charge"]["state"] = verified_state
+
+        message = (
+            f"Bestätigten Ladestatus sofort veröffentlicht: "
+            f"{verified_state}"
+        )
+
+    else:
+        return False
 
     _vehicle_state_cache[vin] = updated
 
@@ -188,8 +251,7 @@ def publish_confirmed_command_state(
 
     log(
         "INFO",
-        f"Bestätigten Zielladestand sofort veröffentlicht: "
-        f"{name} = {target_soc} %",
+        f"{message} ({name})",
     )
 
     return True

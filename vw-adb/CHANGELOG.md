@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.10
+
+- Publish verified charging start/stop changes to Home Assistant immediately.
+- Merge confirmed charging data into the latest MQTT vehicle state.
+- Keep the full vehicle poll as final command-state verification.
+
 ## 0.1.9
 
 - Simplify vehicle polling to one full poll cycle.
