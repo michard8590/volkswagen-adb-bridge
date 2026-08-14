@@ -868,7 +868,32 @@ def select_vehicle(identifier):
     # Nur wenn jetzt tatsächlich ein anderes Fahrzeug aktiv ist
     # oder der Zustand weiterhin nicht bestimmbar ist, muss die
     # Fahrzeugliste geöffnet werden.
-    root = open_vehicle_list()
+    #
+    # Die VW-App reagiert gelegentlich nicht auf den ersten Versuch,
+    # die Fahrzeugliste zu öffnen. In diesem Fall einmal kontrolliert
+    # zur Übersicht zurückkehren und genau einen zweiten Versuch machen.
+    last_error = None
+
+    for attempt in range(2):
+        try:
+            root = open_vehicle_list()
+            break
+
+        except UIError as exc:
+            last_error = exc
+
+            if attempt >= 1:
+                raise
+
+            try:
+                ensure_vehicle_overview()
+            except Exception:
+                pass
+
+            time.sleep(POLL_INTERVAL)
+
+    else:
+        raise last_error
 
     cards = vehicle_cards(root)
 

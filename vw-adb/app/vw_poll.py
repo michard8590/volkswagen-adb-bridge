@@ -169,6 +169,7 @@ def poll_vehicle(
         },
         "climate": {
             "state": climate_state,
+            "target_temperature": climate_temperature,
         },
         "odometer_km": odometer_km,
     }

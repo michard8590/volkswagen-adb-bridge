@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.11"
+BRIDGE_VERSION = "0.1.12"
 
 
 def _safe_id(value):

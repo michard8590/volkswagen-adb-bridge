@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.12
+
+- Fix climate target temperature missing from published vehicle state.
+- Retry opening the Volkswagen vehicle list once after a transient UI failure.
+- Improve robustness when polling multiple vehicles.
+
 ## 0.1.11
 
 - Add a native Home Assistant climate entity for every vehicle.
