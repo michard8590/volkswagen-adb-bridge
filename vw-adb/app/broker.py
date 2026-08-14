@@ -98,7 +98,66 @@ def connection_healthcheck(connection):
     }
 
 
-def run_basic_poll(options, cancel_event=None):
+_vehicle_state_cache = {}
+
+
+def publish_vehicle_update(
+    mqtt_bridge,
+    vehicle_data,
+    poll_type,
+):
+    vehicle = vehicle_data.get("vehicle") or {}
+    vin = str(vehicle.get("vin") or "").strip()
+
+    if not vin:
+        raise ValueError("Fahrzeugstatus ohne VIN")
+
+    previous = _vehicle_state_cache.get(vin)
+
+    merged = dict(vehicle_data)
+    merged["charge"] = dict(
+        vehicle_data.get("charge") or {}
+    )
+
+    if previous is not None:
+        previous_charge = previous.get("charge") or {}
+
+        if merged["charge"].get("target_soc") is None:
+            merged["charge"]["target_soc"] = (
+                previous_charge.get("target_soc")
+            )
+
+        if merged.get("odometer_km") is None:
+            merged["odometer_km"] = (
+                previous.get("odometer_km")
+            )
+
+    _vehicle_state_cache[vin] = merged
+
+    publish_vehicle_discovery(
+        mqtt_bridge,
+        merged,
+    )
+
+    publish_vehicle_state(
+        mqtt_bridge,
+        merged,
+    )
+
+    name = vehicle.get("name") or vin
+
+    log(
+        "INFO",
+        f"Fahrzeugstatus veröffentlicht: "
+        f"{name} ({poll_type})",
+    )
+
+
+def run_basic_poll(
+    options,
+    mqtt_bridge,
+    cancel_event=None,
+):
     return poll_once(
         sync_if_older_than=options.get(
             "sync_if_older_than",
@@ -114,10 +173,19 @@ def run_basic_poll(options, cancel_event=None):
         ),
         include_details=False,
         cancel_event=cancel_event,
+        on_vehicle=lambda vehicle_data: publish_vehicle_update(
+            mqtt_bridge,
+            vehicle_data,
+            "basic",
+        ),
     )
 
 
-def run_detail_poll(options, cancel_event=None):
+def run_detail_poll(
+    options,
+    mqtt_bridge,
+    cancel_event=None,
+):
     return poll_once(
         sync_if_older_than=options.get(
             "sync_if_older_than",
@@ -133,6 +201,11 @@ def run_detail_poll(options, cancel_event=None):
         ),
         include_details=True,
         cancel_event=cancel_event,
+        on_vehicle=lambda vehicle_data: publish_vehicle_update(
+            mqtt_bridge,
+            vehicle_data,
+            "detail",
+        ),
     )
 
 
@@ -369,6 +442,7 @@ def main():
                         "basic-poll",
                         run_basic_poll,
                         options,
+                        mqtt_bridge,
                         priority=PRIORITY_POLL,
                         cancellable=True,
                     )
@@ -397,29 +471,6 @@ def main():
                         # Zusätzlich pro Fahrzeug einen eigenen,
                         # retained MQTT-State sowie Home-Assistant
                         # Device Discovery veröffentlichen.
-                        for vehicle_data in result.get(
-                            "vehicles",
-                            [],
-                        ):
-                            try:
-                                publish_vehicle_discovery(
-                                    mqtt_bridge,
-                                    vehicle_data,
-                                )
-
-                                publish_vehicle_state(
-                                    mqtt_bridge,
-                                    vehicle_data,
-                                )
-
-                            except Exception as exc:
-                                log(
-                                    "ERROR",
-                                    "MQTT Discovery/State für "
-                                    "Fahrzeug fehlgeschlagen: "
-                                    f"{exc}",
-                                )
-
                         log(
                             "INFO",
                             "Fahrzeug-Poll abgeschlossen: "
@@ -457,6 +508,7 @@ def main():
                         "detail-poll",
                         run_detail_poll,
                         options,
+                        mqtt_bridge,
                         priority=PRIORITY_BACKGROUND,
                         cancellable=True,
                     )
@@ -481,20 +533,6 @@ def main():
                         mqtt_bridge.publish_state(
                             result
                         )
-
-                        for vehicle_data in result.get(
-                            "vehicles",
-                            [],
-                        ):
-                            publish_vehicle_discovery(
-                                mqtt_bridge,
-                                vehicle_data,
-                            )
-
-                            publish_vehicle_state(
-                                mqtt_bridge,
-                                vehicle_data,
-                            )
 
                         log(
                             "INFO",

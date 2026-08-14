@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.7
+
+- Publish each vehicle to Home Assistant immediately after it has been polled.
+- Avoid waiting for all vehicles before updating MQTT entities.
+- Preserve detailed target-SOC and odometer values across basic polls.
+
+## 0.1.6
+
+- Add scheduled detailed vehicle polling.
+- Publish target state of charge and odometer to Home Assistant.
+- Trigger an immediate status refresh after MQTT commands.
+
 ## 0.1.5
 
 - Add Home Assistant MQTT Device Discovery.
@@ -7,6 +19,12 @@
 - Add battery SOC, range, charging state, lock state, climate state,
   last synchronization and synchronization age entities.
 - Publish retained MQTT state separately for every vehicle.
+
+## 0.1.4
+
+- Reuse an existing Wireless Debugging authorization before attempting pairing.
+- Prevent a retained pairing-code option from forcing unnecessary re-pairing.
+- Expand the Wireless Debugging pairing documentation.
 
 ## 0.1.3
 

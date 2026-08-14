@@ -157,6 +157,7 @@ def poll_once(
     stop_after=True,
     include_details=False,
     cancel_event=None,
+    on_vehicle=None,
 ):
     started = time.time()
     results = []
@@ -178,15 +179,26 @@ def poll_once(
                 continue
 
             try:
-                results.append(
-                    poll_vehicle(
-                        vin,
-                        sync_if_older_than,
-                        sync_wait_timeout,
-                        include_details=include_details,
-                        cancel_event=cancel_event,
-                    )
+                vehicle_result = poll_vehicle(
+                    vin,
+                    sync_if_older_than,
+                    sync_wait_timeout,
+                    include_details=include_details,
+                    cancel_event=cancel_event,
                 )
+
+                results.append(
+                    vehicle_result
+                )
+
+                # Ein fertiges Fahrzeug sofort weiterreichen.
+                # Bei mehreren Fahrzeugen muss dadurch nicht auf den
+                # vollständigen Poll gewartet werden.
+                if on_vehicle is not None:
+                    on_vehicle(
+                        vehicle_result
+                    )
+
             except BackgroundCancelled:
                 raise
 
