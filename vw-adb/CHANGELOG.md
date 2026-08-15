@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.26
+
+- Keep the last known vehicle location available while the ADB bridge is temporarily offline.
+- Apply bridge availability to vehicle entities except the GPS device tracker.
+- Reduce the default Volkswagen synchronization confirmation timeout from 180 to 60 seconds.
+
 ## 0.1.25
 
 - Publish retained MQTT device discovery only when the discovery payload changes.

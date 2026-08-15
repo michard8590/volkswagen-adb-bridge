@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.25"
+BRIDGE_VERSION = "0.1.26"
 
 # Zuletzt veröffentlichte MQTT-Discovery pro Fahrzeug.
 # Discovery wird nur erneut gesendet, wenn sich der Payload ändert.
@@ -67,9 +67,6 @@ def build_vehicle_discovery(vehicle_data):
             "name": BRIDGE_NAME,
             "sw": BRIDGE_VERSION,
         },
-        "availability_topic": "vw_adb/availability",
-        "payload_available": "online",
-        "payload_not_available": "offline",
         "qos": 1,
         "cmps": {
             "soc": {
@@ -279,6 +276,20 @@ def build_vehicle_discovery(vehicle_data):
             ),
             "optimistic": False,
         }
+
+    # Die letzte bekannte GPS-Position bleibt auch dann gültig, wenn
+    # die ADB-Bridge kurz neu startet oder die MQTT-Verbindung verliert.
+    # Deshalb bekommt nur der Location-Tracker bewusst keine Availability.
+    #
+    # Alle übrigen Entities sollen bei einer nicht verfügbaren Bridge
+    # weiterhin korrekt als unavailable erscheinen.
+    for component_id, component in payload["cmps"].items():
+        if component_id == "location":
+            continue
+
+        component["availability_topic"] = "vw_adb/availability"
+        component["payload_available"] = "online"
+        component["payload_not_available"] = "offline"
 
     return payload
 
