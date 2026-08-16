@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.28
+
+- Detect Volkswagen low 12-volt battery remote-operation warnings centrally.
+- Dismiss known low 12-volt battery dialogs semantically without fixed coordinates.
+- Abort climate, charging and lock command waits immediately when Volkswagen reports the vehicle unavailable.
+- Never retry an already triggered remote vehicle command after a low 12-volt battery warning.
+- Recognize the Volkswagen location-unavailable message when the engine/GPS conditions do not allow vehicle positioning.
+- Keep the last known Home Assistant vehicle location when Volkswagen temporarily cannot provide a position.
+- Keep genuine marker-opening failures separate from legitimate Volkswagen location-unavailable states.
+
 ## 0.1.27
 
 - Wake the Android screen and dismiss an unsecured keyguard before starting the Volkswagen app.

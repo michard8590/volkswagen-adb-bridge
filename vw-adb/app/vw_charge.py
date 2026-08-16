@@ -21,6 +21,7 @@ from vw_ui import (
     tap_node,
 )
 
+from vw_ui import dump_ui_checked
 from vw_vehicle import (
     ensure_vehicle_overview,
     open_settings,
@@ -228,7 +229,7 @@ def parse_dialog(root):
 
 
 def open_charging_dialog_once():
-    root = dump_ui()
+    root = dump_ui_checked()
 
     button, _ = get_charge_button(
         root
@@ -275,7 +276,7 @@ def open_charging_dialog_once():
     while time.monotonic() < deadline:
         time.sleep(POLL_INTERVAL)
 
-        root = dump_ui()
+        root = dump_ui_checked()
 
         button, _ = get_charge_button(
             root
@@ -309,7 +310,7 @@ def wait_for_state(target_state):
     while time.monotonic() < deadline:
         time.sleep(POLL_INTERVAL)
 
-        root = dump_ui()
+        root = dump_ui_checked()
 
         status = parse_dialog(
             root
@@ -371,7 +372,7 @@ def refresh_charging_details(
 
         time.sleep(POLL_INTERVAL)
 
-        root = dump_ui()
+        root = dump_ui_checked()
 
         current = parse_dialog(
             root
@@ -724,7 +725,7 @@ def wait_for_target_soc_setting(timeout=TARGET_SOC_WAIT_TIMEOUT):
     last_error = None
 
     while time.monotonic() < deadline:
-        root = dump_ui()
+        root = dump_ui_checked()
         try:
             value = read_target_soc_from_settings(root)
             return root, value
@@ -751,7 +752,7 @@ def find_soc_container(root):
     return container
 
 def handle_battery_care_warning():
-    root = dump_ui()
+    root = dump_ui_checked()
 
     confirm = None
 

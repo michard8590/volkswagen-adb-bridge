@@ -20,6 +20,7 @@ from vw_ui import (
     tap_node,
 )
 
+from vw_ui import RemoteUnavailableError, dump_ui_checked
 from vw_vehicle import (
     ensure_vehicle_overview,
     select_vehicle_info,
@@ -100,7 +101,7 @@ def get_climate_tile_status(root):
 
 
 def read_overview_status():
-    root = dump_ui()
+    root = dump_ui_checked()
 
     state = get_climate_tile_status(
         root
@@ -135,7 +136,7 @@ def is_climate_dialog(root):
 
 
 def open_climate_dialog_once():
-    root = dump_ui()
+    root = dump_ui_checked()
 
     if is_climate_dialog(root):
         return root
@@ -169,7 +170,7 @@ def open_climate_dialog_once():
     while time.monotonic() < deadline:
         time.sleep(POLL_INTERVAL)
 
-        root = dump_ui()
+        root = dump_ui_checked()
 
         if is_climate_dialog(root):
             return root
@@ -182,6 +183,10 @@ def open_climate_dialog_once():
 def ensure_climate_dialog():
     try:
         return open_climate_dialog_once()
+    except RemoteUnavailableError:
+        # VW hat die Funktion ausdrücklich abgelehnt.
+        # Nicht nochmals auf die Klimakachel tippen.
+        raise
     except UIError:
         # Safe navigation retry only; no climate command has been sent.
         ensure_vehicle_overview()
@@ -415,7 +420,7 @@ def set_temperature(target):
     ):
         time.sleep(0.6)
 
-        root = dump_ui()
+        root = dump_ui_checked()
 
         actual, area = (
             find_current_temperature(
@@ -468,7 +473,7 @@ def set_temperature(target):
                 TEMP_SWIPE_DELAY
             )
 
-    root = dump_ui()
+    root = dump_ui_checked()
 
     actual, _ = (
         find_current_temperature(
@@ -525,7 +530,7 @@ def wait_for_overview_state(
     while time.monotonic() < deadline:
         time.sleep(POLL_INTERVAL)
 
-        root = dump_ui()
+        root = dump_ui_checked()
 
         # Dialog kann nach Start/Stop
         # weiterhin offen sein.
@@ -624,7 +629,7 @@ def set_climate_state(target):
 
 
 def read_status():
-    root = dump_ui()
+    root = dump_ui_checked()
 
     state = get_climate_tile_status(
         root

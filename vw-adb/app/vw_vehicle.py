@@ -15,6 +15,7 @@ from vw_ui import (
     all_nodes,
     clickable_parent,
     dump_ui,
+    detect_remote_unavailable,
     find_by_description,
     find_by_resource_id,
     parse_bounds,
@@ -525,61 +526,12 @@ def open_settings_to_sync(max_scrolls=8):
 
 def dismiss_sync_blocked_dialog(root):
     """
-    Erkennt bekannte VW-Hinweise, bei denen eine Remote-Synchronisierung
-    aktuell nicht möglich ist.
-
-    Rückgabe:
-      None                -> kein bekannter Blocker
-      "low_12v_battery"   -> 12-V-Fahrzeugbatterie zu schwach
+    Kompatibilitäts-Wrapper für den zentralen VW-Remote-Blocker.
     """
-    values = []
-
-    for item in all_nodes(root):
-        if item["text"]:
-            values.append(item["text"])
-        if item["desc"]:
-            values.append(item["desc"])
-
-    combined = " ".join(values).lower()
-
-    low_12v = (
-        "12-volt" in combined
-        and (
-            "fahrzeugbatterie" in combined
-            or "vehicle battery" in combined
-        )
-        and (
-            "zu wenig energie" in combined
-            or "too little energy" in combined
-            or "low" in combined
-        )
+    return detect_remote_unavailable(
+        root,
+        dismiss=True,
     )
-
-    if not low_12v:
-        return None
-
-    # Dialog semantisch bestätigen, keine feste Koordinate verwenden.
-    for item in all_nodes(root):
-        text = item["text"].strip().lower()
-        desc = item["desc"].strip().lower()
-
-        if text in ("ok", "okay") or desc in ("ok", "okay"):
-            target = clickable_parent(
-                root,
-                item["node"],
-            )
-
-            tap_node(
-                target
-                if target is not None
-                else item["node"]
-            )
-
-            time.sleep(0.35)
-            break
-
-    return "low_12v_battery"
-
 
 def wait_for_sync_confirmation(
     previous_age_seconds,

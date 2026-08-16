@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.27"
+BRIDGE_VERSION = "0.1.28"
 
 # Zuletzt veröffentlichte MQTT-Discovery pro Fahrzeug.
 # Discovery wird nur erneut gesendet, wenn sich der Payload ändert.

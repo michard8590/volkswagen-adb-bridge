@@ -21,6 +21,7 @@ from vw_ui import (
     tap,
     tap_node,
 )
+from vw_ui import dump_ui_checked
 from vw_vehicle import ensure_vehicle_overview, select_vehicle_info
 
 
@@ -140,7 +141,7 @@ def wait_for_lock_idle(timeout=WAIT_IDLE):
     last_transition = None
 
     while time.time() < deadline:
-        root = dump_ui()
+        root = dump_ui_checked()
         transition = transition_from_root(root)
 
         if transition is None:
@@ -297,7 +298,7 @@ def find_lock_feature_with_scroll():
         if not scroll_overview_once(root):
             return root, None
 
-        root = dump_ui()
+        root = dump_ui_checked()
 
     return root, None
 
@@ -313,7 +314,7 @@ def open_lock_sheet():
     deadline = time.time() + WAIT_SCREEN
 
     while time.time() < deadline:
-        root = dump_ui()
+        root = dump_ui_checked()
 
         compose = None
         sheet = None
@@ -425,7 +426,7 @@ def wait_for_spin_screen():
     deadline = time.time() + WAIT_SCREEN
 
     while time.time() < deadline:
-        root = dump_ui()
+        root = dump_ui_checked()
 
         edit = find_spin_edit(root)
 
@@ -445,7 +446,7 @@ def dismiss_autofill():
     deadline = time.time() + 4.0
 
     while time.time() < deadline:
-        root = dump_ui()
+        root = dump_ui_checked()
 
         preferred = (
             "android:id/autofill_save_no",
@@ -548,7 +549,7 @@ def wait_for_result(target):
     last_state = None
 
     while time.time() < deadline:
-        root = dump_ui()
+        root = dump_ui_checked()
 
         state = state_from_root(root)
         transition = transition_from_root(root)

@@ -117,6 +117,74 @@ def center_on_vehicle():
     raise UIError("'Find vehicle' wurde nicht gefunden")
 
 
+LOCATION_UNAVAILABLE_MARKERS = (
+    "wir können den standort ihres fahrzeugs nur anzeigen",
+    "wir koennen den standort ihres fahrzeugs nur anzeigen",
+    "motor ausgeschaltet",
+    "gps verfügbar",
+    "gps verfuegbar",
+    "we can only show your vehicle",
+    "engine is switched off",
+    "gps is available",
+)
+
+
+def location_unavailable(root):
+    values = []
+
+    for item in all_nodes(root):
+        if item["text"]:
+            values.append(item["text"])
+        if item["desc"]:
+            values.append(item["desc"])
+
+    combined = " ".join(values).lower()
+
+    german = (
+        (
+            "standort ihres fahrzeugs" in combined
+            or "standort des fahrzeugs" in combined
+        )
+        and "motor" in combined
+        and "gps" in combined
+    )
+
+    english = (
+        "vehicle" in combined
+        and "location" in combined
+        and "engine" in combined
+        and "gps" in combined
+    )
+
+    return german or english
+
+
+def dismiss_location_unavailable(root):
+    if not location_unavailable(root):
+        return False
+
+    for item in all_nodes(root):
+        text = item["text"].strip().lower()
+        desc = item["desc"].strip().lower()
+
+        if text in ("ok", "okay") or desc in ("ok", "okay"):
+            target = clickable_parent(
+                root,
+                item["node"],
+            )
+
+            tap_node(
+                target
+                if target is not None
+                else item["node"]
+            )
+
+            time.sleep(WAIT_SHORT)
+            break
+
+    return True
+
+
 def vehicle_details_open(root):
     has_share = False
     has_route = False
@@ -153,6 +221,14 @@ def open_vehicle_details(marker_x, marker_y):
     while time.monotonic() < deadline:
         time.sleep(WAIT_SHORT)
         root = dump_ui()
+
+        if dismiss_location_unavailable(root):
+            raise UIError(
+                "Fahrzeugstandort aktuell nicht verfügbar: "
+                "Motor muss ausgeschaltet und GPS verfügbar sein. "
+                "Letzter bekannter Standort bleibt erhalten."
+            )
+
         if vehicle_details_open(root):
             return root
 

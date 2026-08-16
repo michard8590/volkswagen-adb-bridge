@@ -28,6 +28,14 @@ class UIError(RuntimeError):
     pass
 
 
+class RemoteUnavailableError(UIError):
+    """VW lehnt eine Remote-Funktion mit einem bekannten Hinweis ab."""
+
+    def __init__(self, reason, message):
+        super().__init__(message)
+        self.reason = reason
+
+
 def configure_device(u2_device=None, adb_serial=None):
     """
     Bindet die VW-UI-Schicht an das vom Broker ausgewählte Android-Gerät.
@@ -196,6 +204,103 @@ def dump_ui():
         f"UI-Dump über uiautomator2 fehlgeschlagen: {last_error}"
     )
 
+
+
+def _combined_ui_text(root):
+    values = []
+
+    for node in root.iter("node"):
+        text = node.attrib.get("text", "").strip()
+        desc = node.attrib.get("content-desc", "").strip()
+
+        if text:
+            values.append(text)
+        if desc:
+            values.append(desc)
+
+    return " ".join(values).lower()
+
+
+def _dismiss_ok_button(root):
+    """Bekannten neutralen OK/Okay-Button semantisch bestätigen."""
+    for node in root.iter("node"):
+        text = node.attrib.get("text", "").strip().lower()
+        desc = node.attrib.get("content-desc", "").strip().lower()
+
+        if text not in ("ok", "okay") and desc not in ("ok", "okay"):
+            continue
+
+        target = clickable_parent(root, node)
+
+        tap_node(
+            target
+            if target is not None
+            else node
+        )
+
+        time.sleep(0.35)
+        return True
+
+    return False
+
+
+def detect_remote_unavailable(root, dismiss=True):
+    """
+    Erkennt bekannte VW-Hinweise, bei denen Remote-Bedienung momentan
+    nicht möglich ist.
+
+    Rückgabe ist ein stabiler technischer Reason-Code oder None.
+    """
+    combined = _combined_ui_text(root)
+
+    low_12v = (
+        (
+            "12-volt" in combined
+            or "12 volt" in combined
+        )
+        and (
+            "fahrzeugbatterie" in combined
+            or "vehicle battery" in combined
+        )
+        and (
+            "zu wenig energie" in combined
+            or "too little energy" in combined
+            or "low energy" in combined
+            or "low battery" in combined
+        )
+    )
+
+    if not low_12v:
+        return None
+
+    if dismiss:
+        _dismiss_ok_button(root)
+
+    return "low_12v_battery"
+
+
+def dump_ui_checked():
+    """
+    UI-Dump mit Erkennung bekannter VW-Remote-Fehler.
+
+    Ein bereits ausgelöster Fahrzeugbefehl wird dadurch niemals
+    automatisch wiederholt.
+    """
+    root = dump_ui()
+
+    reason = detect_remote_unavailable(
+        root,
+        dismiss=True,
+    )
+
+    if reason == "low_12v_battery":
+        raise RemoteUnavailableError(
+            reason,
+            "Remote-Bedienung nicht möglich: "
+            "12-V-Fahrzeugbatterie verfügt über zu wenig Energie",
+        )
+
+    return root
 
 
 def parse_bounds(bounds):
