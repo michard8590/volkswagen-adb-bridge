@@ -26,7 +26,7 @@ from vw_vehicle import (
 
 
 DEFAULT_SYNC_IF_OLDER_THAN = 15 * 60
-DEFAULT_SYNC_WAIT_TIMEOUT = 180
+DEFAULT_SYNC_WAIT_TIMEOUT = 60
 
 # Remote-Lock-Unterstützung ändert sich während eines Add-on-Laufs
 # normalerweise nicht. Die aufwendigere UI-Erkennung daher nur einmal

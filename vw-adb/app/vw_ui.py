@@ -385,6 +385,51 @@ def all_nodes(root):
         }
 
 
+def root_has_vw_app(root):
+    """True wenn im aktuellen UI-Baum eine View der Volkswagen-App liegt."""
+    if root is None:
+        return False
+
+    return any(
+        node.attrib.get("package", "") == PACKAGE
+        for node in root.iter("node")
+    )
+
+
+def prepare_device():
+    """
+    Bildschirm für die UI-Automation vorbereiten.
+
+    KEYCODE_WAKEUP schaltet einen bereits aktiven Bildschirm nicht aus.
+    wm dismiss-keyguard kann einen ungesicherten Sperrbildschirm schließen,
+    umgeht aber bewusst keinen PIN, kein Passwort und kein Muster.
+    """
+    try:
+        adb(
+            "shell",
+            "input",
+            "keyevent",
+            "KEYCODE_WAKEUP",
+        )
+    except Exception:
+        pass
+
+    time.sleep(0.15)
+
+    try:
+        adb(
+            "shell",
+            "wm",
+            "dismiss-keyguard",
+        )
+    except Exception:
+        # Auf Geräten/Android-Versionen ohne unterstützten Befehl
+        # übernimmt start_app() anschließend die normale Fehlerbehandlung.
+        pass
+
+    time.sleep(0.15)
+
+
 def stop_app():
     """VW-App vollständig beenden, uiautomator2 selbst bleibt aktiv."""
     adb(
@@ -397,6 +442,8 @@ def stop_app():
 
 def start_app():
     """VW-App starten und warten, bis eine VW-UI sichtbar ist."""
+    prepare_device()
+
     adb(
         "shell",
         "monkey",

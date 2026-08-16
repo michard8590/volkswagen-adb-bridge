@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.27
+
+- Wake the Android screen and dismiss an unsecured keyguard before starting the Volkswagen app.
+- Recover safely when the Volkswagen app is closed or left during read-only vehicle navigation.
+- Detect the Volkswagen low 12-volt battery synchronization warning and stop waiting immediately.
+- Treat an unavailable odometer value as valid missing vehicle data instead of a poll failure.
+- Keep the last known Home Assistant odometer value when Volkswagen temporarily reports no odometer data.
+- Use a 60-second synchronization wait timeout consistently in add-on and standalone poll defaults.
+
 ## 0.1.26
 
 - Keep the last known vehicle location available while the ADB bridge is temporarily offline.

@@ -214,9 +214,20 @@ def _scroll_up_once(root, duration_ms=350):
 
 
 def ensure_vehicle_overview(max_back=4):
-    """Reach the vehicle overview at the top without restarting the app."""
+    """
+    Reach the vehicle overview at the top.
+
+    Wenn der Benutzer die VW-App während einer read-only Navigation
+    beendet oder verlässt, niemals BACK/Swipe in einer fremden App
+    ausführen. Stattdessen die VW-App kontrolliert wieder öffnen.
+    """
     for attempt in range(max_back + 1):
         root = dump_ui()
+
+        from vw_ui import root_has_vw_app, start_app
+
+        if not root_has_vw_app(root):
+            root = start_app()
 
         if is_vehicle_overview_top(root):
             return root
@@ -512,9 +523,67 @@ def open_settings_to_sync(max_scrolls=8):
     raise UIError("'Jetzt synchronisieren' nicht gefunden")
 
 
+def dismiss_sync_blocked_dialog(root):
+    """
+    Erkennt bekannte VW-Hinweise, bei denen eine Remote-Synchronisierung
+    aktuell nicht möglich ist.
+
+    Rückgabe:
+      None                -> kein bekannter Blocker
+      "low_12v_battery"   -> 12-V-Fahrzeugbatterie zu schwach
+    """
+    values = []
+
+    for item in all_nodes(root):
+        if item["text"]:
+            values.append(item["text"])
+        if item["desc"]:
+            values.append(item["desc"])
+
+    combined = " ".join(values).lower()
+
+    low_12v = (
+        "12-volt" in combined
+        and (
+            "fahrzeugbatterie" in combined
+            or "vehicle battery" in combined
+        )
+        and (
+            "zu wenig energie" in combined
+            or "too little energy" in combined
+            or "low" in combined
+        )
+    )
+
+    if not low_12v:
+        return None
+
+    # Dialog semantisch bestätigen, keine feste Koordinate verwenden.
+    for item in all_nodes(root):
+        text = item["text"].strip().lower()
+        desc = item["desc"].strip().lower()
+
+        if text in ("ok", "okay") or desc in ("ok", "okay"):
+            target = clickable_parent(
+                root,
+                item["node"],
+            )
+
+            tap_node(
+                target
+                if target is not None
+                else item["node"]
+            )
+
+            time.sleep(0.35)
+            break
+
+    return "low_12v_battery"
+
+
 def wait_for_sync_confirmation(
     previous_age_seconds,
-    timeout=180.0,
+    timeout=60.0,
     cancel_event=None,
 ):
     """
@@ -566,7 +635,7 @@ def wait_for_sync_confirmation(
 
 def sync_if_stale(
     max_age_seconds,
-    wait_timeout=180.0,
+    wait_timeout=60.0,
     cancel_event=None,
 ):
     """
@@ -597,6 +666,7 @@ def sync_if_stale(
         "sync_requested": False,
         "sync_confirmed": None,
         "sync_pending": False,
+        "sync_error": None,
     }
 
     if max_age_seconds is None or max_age_seconds <= 0:
@@ -620,7 +690,49 @@ def sync_if_stale(
     # From this point on we NEVER raise BackgroundCancelled for this
     # synchronization. A command may only stop our local confirmation
     # wait. The remote request has already been submitted.
-    time.sleep(0.5)
+    #
+    # VW kann unmittelbar nach dem Klick einen Hinweis anzeigen, dass
+    # Remote-Bedienung wegen einer schwachen 12-V-Batterie nicht möglich
+    # ist. In diesem Fall nicht sinnlos bis zum Sync-Timeout warten.
+    blocker = None
+    blocker_deadline = time.monotonic() + 2.0
+
+    while time.monotonic() < blocker_deadline:
+        time.sleep(0.25)
+
+        try:
+            blocker_root = dump_ui()
+        except UIError:
+            continue
+
+        blocker = dismiss_sync_blocked_dialog(
+            blocker_root
+        )
+
+        if blocker is not None:
+            break
+
+        # Wenn der Dialog gar nicht erschienen ist, nicht die vollen
+        # zwei Sekunden warten, sobald wieder normale VW-Navigation
+        # sichtbar ist.
+        if (
+            is_settings_screen(blocker_root)
+            or is_vehicle_overview(blocker_root)
+        ):
+            break
+
+    if blocker is not None:
+        result["sync_confirmed"] = False
+        result["sync_pending"] = False
+        result["sync_error"] = blocker
+
+        try:
+            ensure_vehicle_overview(max_back=2)
+        except UIError:
+            pass
+
+        return result
+
     press_back()
     time.sleep(0.35)
 

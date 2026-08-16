@@ -28,6 +28,12 @@ REPORT_TEXTS = (
     "vehicle health report",
 )
 
+ODOMETER_UNAVAILABLE_TEXTS = (
+    "momentan keine daten verfügbar",
+    "currently no data available",
+    "no data available",
+)
+
 
 def _find_report_tile(root):
     for item in all_nodes(root):
@@ -35,6 +41,23 @@ def _find_report_tile(root):
         if any(text in combined for text in REPORT_TEXTS):
             return item["node"]
     return None
+
+
+def odometer_unavailable(root):
+    for item in all_nodes(root):
+        combined = (
+            f"{item['text']} {item['desc']}"
+            .strip()
+            .lower()
+        )
+
+        if any(
+            text in combined
+            for text in ODOMETER_UNAVAILABLE_TEXTS
+        ):
+            return True
+
+    return False
 
 
 def _largest_scrollable(root):
@@ -84,10 +107,17 @@ def open_vehicle_status_report(max_scrolls=8):
             while time.monotonic() < deadline:
                 time.sleep(WAIT_SHORT)
                 root = dump_ui()
+
                 if parse_odometer_km(root) is not None:
                     return root
 
-            raise UIError("Fahrzeugzustandsbericht geöffnet, Kilometerstand aber nicht gefunden")
+                if odometer_unavailable(root):
+                    return root
+
+            raise UIError(
+                "Fahrzeugzustandsbericht geöffnet, "
+                "Kilometerstand aber nicht gefunden"
+            )
 
         if not _scroll_down_once(root):
             break
@@ -139,9 +169,16 @@ def parse_odometer_km(root):
 def read_odometer_km():
     root = open_vehicle_status_report()
     value = parse_odometer_km(root)
-    if value is None:
-        raise UIError("Kilometerstand nicht gefunden")
-    return value
+
+    if value is not None:
+        return value
+
+    # Ein explizites "keine Daten verfügbar" ist ein gültiger Zustand
+    # der VW-App und kein Fehler des Pollers.
+    if odometer_unavailable(root):
+        return None
+
+    raise UIError("Kilometerstand nicht gefunden")
 
 
 def main():

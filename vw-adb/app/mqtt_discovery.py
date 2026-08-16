@@ -5,7 +5,7 @@ import re
 
 DISCOVERY_PREFIX = "homeassistant"
 BRIDGE_NAME = "Volkswagen ADB Bridge"
-BRIDGE_VERSION = "0.1.26"
+BRIDGE_VERSION = "0.1.27"
 
 # Zuletzt veröffentlichte MQTT-Discovery pro Fahrzeug.
 # Discovery wird nur erneut gesendet, wenn sich der Payload ändert.
@@ -160,7 +160,7 @@ def build_vehicle_discovery(vehicle_data):
                 "value_template": (
                     "{{ value_json.odometer_km "
                     "if value_json.odometer_km is not none "
-                    "else none }}"
+                    "else '' }}"
                 ),
             },
             "target_soc_control": {
